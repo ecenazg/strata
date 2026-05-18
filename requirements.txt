@@ -1,0 +1,24 @@
+# Core audio
+librosa==0.10.2
+soundfile==0.12.1
+numpy==1.26.4
+scipy==1.13.1
+
+# Source separation (requires PyTorch — install separately with CUDA if available)
+# pip install torch torchaudio  (before demucs)
+demucs==4.0.1
+
+# Evaluation
+mir_eval==0.7
+
+# WebSocket server
+websockets==12.0
+
+# Visualisation / export
+matplotlib==3.9.0
+
+# CLI
+click==8.1.7
+
+# Utilities
+tqdm==4.66.4
