@@ -103,3 +103,67 @@ def load_features(features_dir, stem_name):
 
 def load_all_features(features_dir, stem_names):
     return {s: load_features(features_dir, s) for s in stem_names}
+
+def extract(audio_path, stem_paths):
+    """
+    pipeline.py ve features.py arasındaki bağlantıyı kuran köprü fonksiyon.
+    Verileri 60 FPS'ye indirger ve Three.js formatına çevirir.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    import config
+    from analysis.features import FeatureTimeline, FrameFeatures
+    from analysis.features import StemFeatures as OutStemFeatures
+    
+    log.info("Özellikler çıkarılıyor ve birleştiriliyor...")
+    
+    raw_data = extract_all(
+        stem_paths, 
+        features_dir=config.PROJECT_ROOT,
+        sample_rate=config.TARGET_SR, 
+        hop_length=config.HOP_LENGTH
+    )
+    
+    melody_raw = raw_data["melody"]
+    n_frames = melody_raw.n_frames
+    
+    raw_fps = config.TARGET_SR / config.HOP_LENGTH
+    step = max(1, int(round(raw_fps / config.TARGET_FPS)))
+    
+    out_frames = []
+    
+    for i in range(0, n_frames, step):
+        def map_stem(stem_name):
+            if stem_name not in raw_data or i >= len(raw_data[stem_name].frames):
+                return OutStemFeatures()
+            f = raw_data[stem_name].frames[i]
+            return OutStemFeatures(
+                rms=f.rms,
+                onset=f.onset,
+                spectral_centroid=f.centroid * 22050, # Gerçek frekans değerine çevir
+                chroma=f.chroma,
+                pitch_hz=float(f.pitch), 
+                beat_phase=1.0 if f.beat else 0.0
+            )
+        
+        frame = FrameFeatures(
+            t=melody_raw.frames[i].t,
+            frame_idx=i,
+            melody=map_stem("melody"),
+            bass=map_stem("bass"),
+            drums=map_stem("drums"),
+            harmonic=map_stem("harmonic")
+        )
+        out_frames.append(frame)
+
+    timeline = FeatureTimeline(
+        audio_path=str(audio_path),
+        duration=melody_raw.duration,
+        sr=config.TARGET_SR,
+        hop_length=config.HOP_LENGTH * step,
+        fps=raw_fps / step,
+        stems=config.STEM_NAMES,
+        frames=out_frames
+    )
+    return timeline
