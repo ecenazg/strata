@@ -3,30 +3,61 @@ import * as THREE from "three";
 export class BassShockwave {
   constructor(scene) {
     this.scene = scene;
+    this.energy = 0;
+    this.phase = 0;
+    this.mix = 1;
 
-    // Daha şık, içi dolu bir disk geometrisi
-    const geometry = new THREE.TorusGeometry(3.5, 0.15, 16, 100);
+    this.mesh = new THREE.Group();
+    this.mesh.rotation.x = -Math.PI / 2;
 
-    this.material = new THREE.MeshBasicMaterial({
-      color: 0x733b73,
+    this.floorMaterial = new THREE.MeshBasicMaterial({
+      color: 0x0b56ff,
       transparent: true,
-      opacity: 0.0,
-      blending: THREE.NormalBlending, // AdditiveBlending yerine normal blending light bglarda daha hoş durur
+      opacity: 0.08,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.floor = new THREE.Mesh(new THREE.CircleGeometry(2.4, 96), this.floorMaterial);
+    this.mesh.add(this.floor);
+
+    this.rings = [0, 1, 2].map((index) => {
+      const geometry = new THREE.TorusGeometry(1.35 + index * 0.55, 0.026, 12, 180);
+      const material = new THREE.MeshBasicMaterial({
+        color: index === 1 ? 0x4cc9ff : 0x0b7cff,
+        transparent: true,
+        opacity: 0.18,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(geometry, material);
+      this.mesh.add(ring);
+      return ring;
     });
 
-    this.mesh = new THREE.Mesh(geometry, this.material);
-    this.mesh.rotation.x = -Math.PI / 2;
-    // YENİ: Yerde hafif yatay bir derinlik hissi için X ve Y'de esnetelim
-    this.mesh.scale.set(1, 1, 0.5);
     this.scene.add(this.mesh);
   }
 
   update(bassData) {
-    // Bass enerjisine (RMS) göre halkanın boyutunu büyüt
-    const targetScale = 1 + bassData.rms * 5;
-    this.mesh.scale.set(targetScale, targetScale, targetScale);
+    const targetEnergy = Math.min(1, bassData.rms * 2.8);
+    this.energy += (targetEnergy - this.energy) * 0.16;
+    this.phase += 0.035 + this.energy * 0.08;
 
-    // Bass vurdukça halkanın parlaklığını/görünürlüğünü artır
-    this.material.opacity = bassData.rms * 2.5;
+    this.floor.scale.setScalar(1 + this.energy * 0.42);
+    this.floorMaterial.opacity = (0.035 + this.energy * 0.13) * this.mix;
+
+    this.rings.forEach((ring, index) => {
+      const offset = (this.phase + index * 0.32) % 1;
+      const spread = 1 + offset * 0.85 + this.energy * 0.65;
+      ring.scale.set(spread, spread, spread);
+      ring.material.opacity =
+        Math.max(0.04, (1 - offset) * (0.18 + this.energy * 0.44)) * this.mix;
+      ring.rotation.z += 0.002 + index * 0.0008;
+    });
+  }
+
+  setMix(mix) {
+    this.mix += (mix - this.mix) * 0.08;
+    this.mesh.visible = this.mix > 0.03;
   }
 }

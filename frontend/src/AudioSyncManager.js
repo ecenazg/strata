@@ -1,6 +1,11 @@
 export class AudioSyncManager {
-  constructor(onFrameCallback) {
+  constructor(onFrameCallback, audioUrl = "/audio/test_music.mp3") {
     this.onFrameCallback = onFrameCallback;
+    this.isPlaying = false;
+    this.audio = new Audio(audioUrl);
+    this.audio.preload = "auto";
+    this.audio.volume = 0.85;
+    this.duration = 0;
 
     // Python sunucusuna bağlan (ws_server.py)
     this.ws = new WebSocket("ws://localhost:8765");
@@ -13,12 +18,14 @@ export class AudioSyncManager {
       const msg = JSON.parse(event.data);
 
       if (msg.type === "ready") {
+        this.duration = msg.duration ?? 0;
         console.log("Sunucu hazır. Şarkı bilgileri:", msg);
-        // Şimdilik tıklar tıklamaz başlatmak yerine konsola hazır yazdırıyoruz.
-        // İleride buraya müziği başlatma (play) kodunu ekleyeceğiz.
       } else if (msg.type === "frame") {
         // Python'dan gelen her frame verisini ana programa yolla
         this.onFrameCallback(msg);
+      } else if (msg.type === "ended") {
+        this.audio.pause();
+        this.isPlaying = false;
       }
     };
 
@@ -27,10 +34,35 @@ export class AudioSyncManager {
     };
   }
 
-  // Müziği başlat komutu
   play() {
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ cmd: "play" }));
     }
+
+    if (!this.isPlaying) {
+      this.audio.play().catch((error) => {
+        console.error("Audio playback could not start:", error);
+      });
+      this.isPlaying = true;
+    }
+  }
+
+  pause() {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ cmd: "pause" }));
+    }
+
+    this.audio.pause();
+    this.isPlaying = false;
+  }
+
+  togglePlayback() {
+    if (this.isPlaying) {
+      this.pause();
+    } else {
+      this.play();
+    }
+
+    return this.isPlaying;
   }
 }
