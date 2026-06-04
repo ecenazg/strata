@@ -51,6 +51,7 @@ class Player:
         self._wall_ref  = 0.0         # wall-clock time when current segment started
         self._play_ref  = 0.0         # playback time at _wall_ref
         self._lock      = asyncio.Lock()
+        self._ended     = False
 
     # ------------------------------------------------------------------ #
     # Control methods (call from WebSocket handler coroutine)
@@ -58,6 +59,11 @@ class Player:
 
     async def play(self) -> None:
         async with self._lock:
+            if self._ended or self._idx >= len(self._tl.frames):
+                self._idx = 0
+                self._play_ref = 0.0
+                self._ended = False
+
             if not self._playing:
                 self._wall_ref = time.monotonic()
                 self._play_ref = self._current_t()
@@ -75,6 +81,7 @@ class Player:
             self._seek_to  = t
             self._play_ref = t
             self._wall_ref = time.monotonic()
+            self._ended = False
             # Snap index to nearest frame
             self._idx = self._frame_index_at(t)
 
@@ -93,11 +100,11 @@ class Player:
     def __aiter__(self) -> "Player":
         return self
 
-    async def __anext__(self) -> tuple[FrameFeatures, float]:
+    async def __anext__(self) -> tuple[Optional[FrameFeatures], float]:
         """
         Block until the next frame is due, then return it.
 
-        Raises StopAsyncIteration when playback reaches the end.
+        Returns (None, duration) once when playback reaches the end.
         """
         correction = 0.0  # accumulated sleep overshoot
 
@@ -110,7 +117,14 @@ class Player:
 
                 # End of timeline
                 if self._idx >= len(self._tl.frames):
-                    raise StopAsyncIteration
+                    if not self._ended:
+                        self._playing = False
+                        self._play_ref = self._tl.duration
+                        self._ended = True
+                        return None, self._tl.duration
+
+                    await asyncio.sleep(config.WS_FRAME_INTERVAL)
+                    continue
 
                 frame = self._tl.frames[self._idx]
                 target_t = frame.t  # when this frame should be delivered

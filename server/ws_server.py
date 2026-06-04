@@ -213,15 +213,18 @@ class StrataServer:
 
     async def _broadcast_loop(self) -> None:
         """Continuously pull frames from the Player and broadcast to all clients."""
-        try:
-            async for frame, t in self._player:
-                if not self._clients:
-                    continue
-                msg = self._frame_to_msg(frame, t)
-                await self._broadcast(msg)
-        except StopAsyncIteration:
-            await self._broadcast({"type": "ended"})
-            log.info("Playback ended.")
+        while True:
+            frame, t = await self._player.__anext__()
+            if not self._clients:
+                continue
+
+            if frame is None:
+                await self._broadcast({"type": "ended"})
+                log.info("Playback ended.")
+                continue
+
+            msg = self._frame_to_msg(frame, t)
+            await self._broadcast(msg)
 
     async def _broadcast(self, msg: dict) -> None:
         if not self._clients:

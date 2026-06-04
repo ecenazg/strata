@@ -117,6 +117,7 @@ let previousPhase = "opening";
 const onFrameReceived = (frameData) => {
   latestFrame = frameData;
   activePhase = getDemoPhase(frameData.t, audioManager.duration);
+  const progress = getProgress(frameData.t, audioManager.duration);
   sceneManager.setPhase(activePhase);
   if (activePhase !== previousPhase) {
     overlay.root.classList.remove("phase-pulse");
@@ -127,7 +128,8 @@ const onFrameReceived = (frameData) => {
   }
   overlay.phase.textContent = phaseLabel(activePhase);
   overlay.state.textContent = "feature stream active";
-  overlay.progress.style.transform = `scaleX(${getProgress(frameData.t, audioManager.duration)})`;
+  overlay.progress.style.transform = `scaleX(${progress})`;
+  overlay.progressTrack.setAttribute("aria-valuenow", Math.round(progress * 100));
   overlay.closing.hidden = activePhase !== "closing";
 
   if (layers.bass) bassVisualizer.update(frameData.bass);
@@ -138,15 +140,62 @@ const onFrameReceived = (frameData) => {
   applyPhaseMix(activePhase);
 };
 
-const audioManager = new AudioSyncManager(onFrameReceived);
+const onPlaybackEnded = () => {
+  activePhase = "opening";
+  previousPhase = "opening";
+  latestFrame = null;
+  sceneManager.setPhase("opening");
+  applyPhaseMix("opening");
+  document.body.classList.remove("is-playing", "phase-pulse");
+  document.body.dataset.phase = "opening";
+  overlay.closing.hidden = true;
+  overlay.phase.textContent = "ready for replay";
+  overlay.state.textContent = "click to replay";
+  overlay.progress.style.transform = "scaleX(0)";
+  overlay.progressTrack.setAttribute("aria-valuenow", "0");
+};
+
+const audioManager = new AudioSyncManager(
+  onFrameReceived,
+  "/audio/test_music.mp3",
+  onPlaybackEnded,
+);
 window.strataDemo = {
   play: () => audioManager.play(),
   pause: () => audioManager.pause(),
+  seek: (timeSeconds) => audioManager.seek(timeSeconds),
   toggle: () => audioManager.togglePlayback(),
 };
 
+let isScrubbing = false;
+
+const seekFromPointer = (event) => {
+  const rect = overlay.progressTrack.getBoundingClientRect();
+  const ratio = (event.clientX - rect.left) / rect.width;
+  seekToRatio(ratio);
+};
+
+overlay.progressTrack.addEventListener("pointerdown", (event) => {
+  event.stopPropagation();
+  isScrubbing = true;
+  overlay.progressTrack.setPointerCapture(event.pointerId);
+  seekFromPointer(event);
+});
+
+overlay.progressTrack.addEventListener("pointermove", (event) => {
+  if (!isScrubbing) return;
+  event.stopPropagation();
+  seekFromPointer(event);
+});
+
+overlay.progressTrack.addEventListener("pointerup", (event) => {
+  event.stopPropagation();
+  isScrubbing = false;
+  overlay.progressTrack.releasePointerCapture(event.pointerId);
+});
+
 window.addEventListener("click", (e) => {
-  if (e.target.closest(".lil-gui")) return;
+  if (e.target.closest(".lil-gui, .progress-track")) return;
 
   const isPlaying = audioManager.togglePlayback();
 
@@ -170,6 +219,12 @@ window.addEventListener("keydown", (e) => {
 
   if (key === "r") {
     recorderControls.recordToggle();
+  }
+
+  if (key === "arrowright" || key === "arrowleft") {
+    e.preventDefault();
+    const jump = key === "arrowright" ? 10 : -10;
+    seekToTime(audioManager.audio.currentTime + jump);
   }
 });
 
@@ -201,7 +256,16 @@ function createCinematicOverlay() {
       <span class="legend-item melody"><i></i>Melody</span>
       <span class="legend-item harmony"><i></i>Harmony</span>
     </div>
-    <div class="progress-track"><span data-progress></span></div>
+    <div
+      class="progress-track"
+      data-seek-track
+      role="slider"
+      aria-label="Song position"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+      tabindex="0"
+    ><span data-progress></span></div>
     <section class="closing-lockup" data-closing hidden>
       <p class="eyebrow">AI source separation</p>
       <h2>Real-time 3D music visualisation</h2>
@@ -213,6 +277,7 @@ function createCinematicOverlay() {
     phase: root.querySelector("[data-phase]"),
     state: root.querySelector("[data-state]"),
     progress: root.querySelector("[data-progress]"),
+    progressTrack: root.querySelector("[data-seek-track]"),
     closing: root.querySelector("[data-closing]"),
   };
 }
@@ -245,6 +310,38 @@ function phaseLabel(phase) {
 function getProgress(t = 0, duration = 0) {
   if (!duration) return 0;
   return Math.max(0, Math.min(1, t / duration));
+}
+
+function seekToRatio(ratio) {
+  const duration = audioManager.duration || audioManager.audio.duration || 0;
+  if (!duration) return;
+  seekToTime(duration * Math.max(0, Math.min(1, ratio)));
+}
+
+function seekToTime(timeSeconds) {
+  const duration = audioManager.duration || audioManager.audio.duration || 0;
+  if (!duration) return;
+
+  const target = audioManager.seek(timeSeconds);
+  const progress = getProgress(target, duration);
+  activePhase = getDemoPhase(target, duration);
+  previousPhase = activePhase;
+  sceneManager.setPhase(activePhase);
+  applyPhaseMix(activePhase);
+
+  overlay.phase.textContent = phaseLabel(activePhase);
+  overlay.state.textContent = `seek ${formatTime(target)} / ${formatTime(duration)}`;
+  overlay.progress.style.transform = `scaleX(${progress})`;
+  overlay.progressTrack.setAttribute("aria-valuenow", Math.round(progress * 100));
+  overlay.closing.hidden = activePhase !== "closing";
+}
+
+function formatTime(timeSeconds) {
+  const minutes = Math.floor(timeSeconds / 60);
+  const seconds = Math.floor(timeSeconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 function applyPhaseMix(phase) {
