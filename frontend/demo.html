@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strata Progress Demo</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #39445b;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+          "three/": "https://unpkg.com/three@0.184.0/",
+          "lil-gui": "https://unpkg.com/lil-gui@0.21.0/dist/lil-gui.esm.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <script type="module" src="./src/main.js?v=progress-demo"></script>
+  </body>
+</html>

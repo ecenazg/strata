@@ -116,6 +116,12 @@ const onFrameReceived = (frameData) => {
 
 // 5. Ses ve Animasyon Döngüsü
 const audioManager = new AudioSyncManager(onFrameReceived);
+window.strataDemo = {
+  play: () => {
+    audioManager.play();
+    audioManager.isPlaying = true;
+  },
+};
 
 window.addEventListener("click", (e) => {
   // GUI paneline tıklanma durumunda müziğin yanlışlıkla tetiklenmesini engelliyoruz
