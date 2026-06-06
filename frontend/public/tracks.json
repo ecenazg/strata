@@ -1,0 +1,14 @@
+{
+  "defaultTrackId": "blinding-lights",
+  "tracks": [
+    {
+      "id": "blinding-lights",
+      "title": "Blinding Lights",
+      "artist": "The Weeknd",
+      "audioUrl": "/audio/test_music.mp3",
+      "featuresFile": "features.json",
+      "prepared": true,
+      "note": "Current prepared demo track"
+    }
+  ]
+}

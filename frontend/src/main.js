@@ -113,6 +113,8 @@ const btnRecord = fExport
 let latestFrame = null;
 let activePhase = "opening";
 let previousPhase = "opening";
+let availableTracks = [];
+let selectedTrack = null;
 
 const onFrameReceived = (frameData) => {
   latestFrame = frameData;
@@ -141,6 +143,21 @@ const onFrameReceived = (frameData) => {
 };
 
 const onPlaybackEnded = () => {
+  resetPlaybackVisualState("click to replay", "ready for replay");
+};
+
+const onBackendReady = (message) => {
+  if (message.track_id) {
+    const track = availableTracks.find((item) => item.id === message.track_id);
+    if (track) {
+      selectedTrack = track;
+      overlay.trackSelect.value = track.id;
+      updateTrackStatus(`ready · ${formatTime(message.duration ?? 0)}`);
+    }
+  }
+};
+
+function resetPlaybackVisualState(stateText = "track ready", phaseText = "opening sequence") {
   activePhase = "opening";
   previousPhase = "opening";
   latestFrame = null;
@@ -149,22 +166,27 @@ const onPlaybackEnded = () => {
   document.body.classList.remove("is-playing", "phase-pulse");
   document.body.dataset.phase = "opening";
   overlay.closing.hidden = true;
-  overlay.phase.textContent = "ready for replay";
-  overlay.state.textContent = "click to replay";
+  overlay.phase.textContent = phaseText;
+  overlay.state.textContent = stateText;
   overlay.progress.style.transform = "scaleX(0)";
   overlay.progressTrack.setAttribute("aria-valuenow", "0");
-};
+}
 
 const audioManager = new AudioSyncManager(
   onFrameReceived,
   "/audio/test_music.mp3",
   onPlaybackEnded,
+  onBackendReady,
 );
+loadTrackManifest();
+
 window.strataDemo = {
   play: () => audioManager.play(),
   pause: () => audioManager.pause(),
   seek: (timeSeconds) => audioManager.seek(timeSeconds),
   toggle: () => audioManager.togglePlayback(),
+  tracks: () => availableTracks,
+  selectTrack: (trackId) => selectTrackById(trackId),
 };
 
 let isScrubbing = false;
@@ -195,7 +217,7 @@ overlay.progressTrack.addEventListener("pointerup", (event) => {
 });
 
 window.addEventListener("click", (e) => {
-  if (e.target.closest(".lil-gui, .progress-track")) return;
+  if (e.target.closest(".lil-gui, .progress-track, .track-picker")) return;
 
   const isPlaying = audioManager.togglePlayback();
 
@@ -256,6 +278,11 @@ function createCinematicOverlay() {
       <span class="legend-item melody"><i></i>Melody</span>
       <span class="legend-item harmony"><i></i>Harmony</span>
     </div>
+    <div class="track-picker" data-track-picker>
+      <label for="track-select">Track</label>
+      <select id="track-select" data-track-select aria-label="Demo track"></select>
+      <span data-track-status>loading tracks</span>
+    </div>
     <div
       class="progress-track"
       data-seek-track
@@ -279,7 +306,64 @@ function createCinematicOverlay() {
     progress: root.querySelector("[data-progress]"),
     progressTrack: root.querySelector("[data-seek-track]"),
     closing: root.querySelector("[data-closing]"),
+    trackPicker: root.querySelector("[data-track-picker]"),
+    trackSelect: root.querySelector("[data-track-select]"),
+    trackStatus: root.querySelector("[data-track-status]"),
   };
+}
+
+async function loadTrackManifest() {
+  try {
+    const response = await fetch("/tracks.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json();
+    availableTracks = (manifest.tracks ?? []).filter((track) => track.prepared !== false);
+    if (!availableTracks.length) {
+      updateTrackStatus("no prepared tracks");
+      overlay.trackSelect.disabled = true;
+      return;
+    }
+
+    selectedTrack =
+      availableTracks.find((track) => track.id === manifest.defaultTrackId) ??
+      availableTracks[0];
+    audioManager.trackId = selectedTrack.id;
+    audioManager.audio.src = selectedTrack.audioUrl;
+    populateTrackSelector();
+    updateTrackStatus(`prepared ${availableTracks.length} track`);
+  } catch (error) {
+    console.error("Could not load track manifest:", error);
+    updateTrackStatus("track manifest missing");
+    overlay.trackSelect.disabled = true;
+  }
+}
+
+function populateTrackSelector() {
+  overlay.trackSelect.innerHTML = "";
+  for (const track of availableTracks) {
+    const option = document.createElement("option");
+    option.value = track.id;
+    option.textContent = track.artist ? `${track.title} · ${track.artist}` : track.title;
+    overlay.trackSelect.appendChild(option);
+  }
+  overlay.trackSelect.value = selectedTrack.id;
+  overlay.trackSelect.addEventListener("change", () => {
+    selectTrackById(overlay.trackSelect.value);
+  });
+}
+
+function selectTrackById(trackId) {
+  const track = availableTracks.find((item) => item.id === trackId);
+  if (!track) return;
+
+  selectedTrack = track;
+  audioManager.setTrack(track);
+  resetPlaybackVisualState("track selected", "opening sequence");
+  updateTrackStatus("selected · click to play");
+}
+
+function updateTrackStatus(text) {
+  overlay.trackStatus.textContent = text;
 }
 
 function getDemoPhase(t = 0, duration = 0) {

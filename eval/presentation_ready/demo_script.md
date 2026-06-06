@@ -8,7 +8,7 @@ Run backend:
 
 ```bash
 cd /Users/humeyrapolat/Documents/AI/strata
-python3 pipeline.py --audio test_music.mp3 --skip-extraction
+python3 pipeline.py --track-manifest frontend/public/tracks.json
 ```
 
 Run frontend:
@@ -23,6 +23,9 @@ Open:
 ```text
 http://127.0.0.1:5173/
 ```
+
+The track selector reads `frontend/public/tracks.json`. Prepared tracks must
+have a matching browser audio file and a matching precomputed features file.
 
 ## Live Demo Timeline
 

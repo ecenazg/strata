@@ -1,12 +1,20 @@
 export class AudioSyncManager {
-  constructor(onFrameCallback, audioUrl = "/audio/test_music.mp3", onEndedCallback = () => {}) {
+  constructor(
+    onFrameCallback,
+    audioUrl = "/audio/test_music.mp3",
+    onEndedCallback = () => {},
+    onReadyCallback = () => {},
+  ) {
     this.onFrameCallback = onFrameCallback;
     this.onEndedCallback = onEndedCallback;
+    this.onReadyCallback = onReadyCallback;
     this.isPlaying = false;
     this.audio = new Audio(audioUrl);
     this.audio.preload = "auto";
     this.audio.volume = 0.85;
     this.duration = 0;
+    this.trackId = null;
+    this.pendingTrackId = null;
 
     this.audio.addEventListener("ended", () => this.finishPlayback());
 
@@ -15,6 +23,10 @@ export class AudioSyncManager {
 
     this.ws.onopen = () => {
       console.log("WebSocket bağlantısı başarılı!");
+      if (this.pendingTrackId) {
+        this.ws.send(JSON.stringify({ cmd: "track", track_id: this.pendingTrackId }));
+        this.pendingTrackId = null;
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -22,18 +34,44 @@ export class AudioSyncManager {
 
       if (msg.type === "ready") {
         this.duration = msg.duration ?? 0;
+        this.trackId = msg.track_id ?? this.trackId;
+        this.onReadyCallback(msg);
         console.log("Sunucu hazır. Şarkı bilgileri:", msg);
+      } else if (msg.type === "track_ready") {
+        this.duration = msg.duration ?? 0;
+        this.trackId = msg.track_id ?? this.trackId;
+        this.onReadyCallback(msg);
+        console.log("Track hazır:", msg);
       } else if (msg.type === "frame") {
+        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
         // Python'dan gelen her frame verisini ana programa yolla
         this.onFrameCallback(msg);
       } else if (msg.type === "ended") {
         this.finishPlayback();
+      } else if (msg.type === "track_error") {
+        console.error("Track switch failed:", msg.message);
       }
     };
 
     this.ws.onerror = (error) => {
       console.error("WebSocket Hatası (Python açık mı?):", error);
     };
+  }
+
+  setTrack(track) {
+    if (!track?.audioUrl) return;
+
+    this.pause();
+    this.trackId = track.id ?? null;
+    this.duration = 0;
+    this.audio.src = track.audioUrl;
+    this.audio.load();
+
+    if (this.ws.readyState === WebSocket.OPEN && this.trackId) {
+      this.ws.send(JSON.stringify({ cmd: "track", track_id: this.trackId }));
+    } else {
+      this.pendingTrackId = this.trackId;
+    }
   }
 
   finishPlayback() {
