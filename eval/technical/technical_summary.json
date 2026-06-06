@@ -1,0 +1,73 @@
+{
+  "audio": "/Users/humeyrapolat/Documents/AI/strata/test_music.mp3",
+  "audio_sha1": "bf8cf5433b3bf5693f3c811a15335ac25afc2b1d",
+  "frontend_audio_sha1": "bf8cf5433b3bf5693f3c811a15335ac25afc2b1d",
+  "sample_rate": 44100,
+  "evaluated_duration_s": 262.571,
+  "stem_paths": {
+    "melody": "/Users/humeyrapolat/Documents/AI/strata/stems/test_music_a7cca8d6/vocals.wav",
+    "bass": "/Users/humeyrapolat/Documents/AI/strata/stems/test_music_a7cca8d6/bass.wav",
+    "drums": "/Users/humeyrapolat/Documents/AI/strata/stems/test_music_a7cca8d6/drums.wav",
+    "harmonic": "/Users/humeyrapolat/Documents/AI/strata/stems/test_music_a7cca8d6/other.wav"
+  },
+  "ground_truth_note": "No isolated reference stems are available for this commercial track; reported diagnostics measure reconstruction consistency, energy distribution, and stem bleed proxies rather than absolute SDR.",
+  "reconstruction_snr_db": 28.488,
+  "residual_rms_dbfs": -41.547,
+  "mix_rms_dbfs": -13.06,
+  "stem_energy_share": {
+    "bass": 0.391,
+    "drums": 0.3163,
+    "melody": 0.1246,
+    "harmonic": 0.1681
+  },
+  "stem_rms_dbfs": {
+    "bass": -17.831,
+    "drums": -18.751,
+    "melody": -22.797,
+    "harmonic": -21.497
+  },
+  "stem_correlation": {
+    "bass": {
+      "bass": 1.0,
+      "drums": 0.0044,
+      "melody": 0.011,
+      "harmonic": 0.1024
+    },
+    "drums": {
+      "bass": 0.0044,
+      "drums": 1.0,
+      "melody": 0.0253,
+      "harmonic": 0.0611
+    },
+    "melody": {
+      "bass": 0.011,
+      "drums": 0.0253,
+      "melody": 1.0,
+      "harmonic": 0.1107
+    },
+    "harmonic": {
+      "bass": 0.1024,
+      "drums": 0.0611,
+      "melody": 0.1107,
+      "harmonic": 1.0
+    }
+  },
+  "mean_abs_stem_correlation": 0.0525,
+  "technical_judgement": {
+    "headline": "The separated stems are technically coherent enough to drive the real-time 3D visualization.",
+    "snr_label": "good",
+    "residual_label": "low residual",
+    "correlation_label": "well separated visual drivers",
+    "dominant_layers": [
+      {
+        "stem": "bass",
+        "share": 0.391
+      },
+      {
+        "stem": "drums",
+        "share": 0.3163
+      }
+    ],
+    "limitation": "Absolute SDR/SIR/SAR would require isolated reference stems. For this commercial track, the honest evaluation is consistency, spectral inspection, and visual-control suitability."
+  }
+}
