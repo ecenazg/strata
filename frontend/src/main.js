@@ -157,7 +157,7 @@ const onPlaybackEnded = () => {
 
 const audioManager = new AudioSyncManager(
   onFrameReceived,
-  `${import.meta.env.BASE_URL}audio/test_music.mp3`,
+  `${import.meta.env.BASE_URL}audio/test_music.mp3?v=trimmed-30s`,
   onPlaybackEnded,
   `${import.meta.env.BASE_URL}features.json`,
 );

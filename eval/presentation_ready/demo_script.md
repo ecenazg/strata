@@ -8,7 +8,7 @@ Run backend:
 
 ```bash
 cd /Users/humeyrapolat/Documents/AI/strata
-python3 pipeline.py --audio test_music.mp3 --skip-extraction
+python3 pipeline.py --audio frontend/public/audio/test_music.mp3 --skip-extraction
 ```
 
 Run frontend:

@@ -56,7 +56,11 @@ GRID = "#263147"
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export Strata technical evaluation assets.")
-    parser.add_argument("--audio", default="test_music.mp3", help="Input mix used by the demo.")
+    parser.add_argument(
+        "--audio",
+        default="frontend/public/audio/test_music.mp3",
+        help="Input mix used by the demo.",
+    )
     parser.add_argument(
         "--out-dir",
         default=str(config.EVAL_DIR / "technical"),

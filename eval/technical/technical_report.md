@@ -1,6 +1,6 @@
 # Strata Technical Evaluation
 
-Audio: `test_music.mp3`
+Audio: `frontend/public/audio/test_music.mp3`
 
 Evaluated duration: **262.571 s**
 

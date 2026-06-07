@@ -109,7 +109,7 @@ The `features.json` and the test MP3 are bundled into the static build (`dist/`)
 ┌─────────────────────────────────────────────────────┐
 │                  PYTHON BACKEND                      │
 │                                                     │
-│  test_music.mp3                                     │
+│  frontend/public/audio/test_music.mp3               │
 │       │                                             │
 │       ▼                                             │
 │  Demucs (htdemucs) ──────────────────────────────►  stems/
