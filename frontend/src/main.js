@@ -157,8 +157,9 @@ const onPlaybackEnded = () => {
 
 const audioManager = new AudioSyncManager(
   onFrameReceived,
-  "/audio/test_music.mp3",
+  `${import.meta.env.BASE_URL}audio/test_music.mp3`,
   onPlaybackEnded,
+  `${import.meta.env.BASE_URL}features.json`,
 );
 window.strataDemo = {
   play: () => audioManager.play(),

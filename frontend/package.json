@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare-assets": "node scripts/prepare-assets.mjs",
+    "predev": "npm run prepare-assets",
     "dev": "vite",
+    "prebuild": "npm run prepare-assets",
     "build": "vite build",
     "preview": "vite preview"
   },
