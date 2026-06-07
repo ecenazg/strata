@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Strata — Progress Video</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #06080f;
+    color: #e8f0ff;
+    font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+    overflow: hidden;
+    width: 1280px;
+    height: 720px;
+    position: relative;
+  }
+
+  /* ── SLIDE ENGINE ── */
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.97) translateY(18px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+    pointer-events: none;
+    padding: 48px 64px;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: all;
+  }
+  .slide.out {
+    opacity: 0;
+    transform: scale(1.03) translateY(-18px);
+  }
+
+  /* ── BACKGROUND PARTICLES ── */
+  #bg { position: absolute; inset: 0; z-index: 0; }
+
+  /* ── SLIDE CONTENT ON TOP ── */
+  .slide { z-index: 10; }
+
+  /* ── PROGRESS BAR ── */
+  #progress-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #5ee7ff, #a87cff, #ffd28a);
+    width: 0%;
+    z-index: 100;
+    transition: width 0.3s linear;
+  }
+
+  /* ── SLIDE COUNTER ── */
+  #counter {
+    position: absolute;
+    bottom: 18px; right: 24px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.28);
+    letter-spacing: 0.08em;
+    z-index: 100;
+  }
+
+  /* ── NAV ── */
+  #nav {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 100;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .dot.active { background: #5ee7ff; }
+
+  /* ── TYPOGRAPHY ── */
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #5ee7ff;
+    margin-bottom: 16px;
+    opacity: 0.85;
+  }
+  h1 {
+    font-size: 96px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, #ffffff 30%, #a0c8ff 70%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 20px;
+  }
+  h2 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #e8f0ff;
+    margin-bottom: 12px;
+  }
+  h3 {
+    font-size: 26px;
+    font-weight: 600;
+    color: #c0d8ff;
+    margin-bottom: 24px;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: rgba(200,220,255,0.65);
+    max-width: 640px;
+    text-align: center;
+    line-height: 1.65;
+    margin-bottom: 40px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 4px;
+  }
+  .tag-blue  { background: rgba(11,124,255,0.18); border: 1px solid rgba(94,231,255,0.3); color: #5ee7ff; }
+  .tag-gold  { background: rgba(255,210,138,0.12); border: 1px solid rgba(255,210,138,0.3); color: #ffd28a; }
+  .tag-green { background: rgba(109,255,143,0.12); border: 1px solid rgba(109,255,143,0.3); color: #6dff8f; }
+  .tag-purple{ background: rgba(186,124,255,0.12); border: 1px solid rgba(186,124,255,0.3); color: #c87cff; }
+  .tag-white { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #e8f0ff; }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    gap: 16px;
+    width: 100%;
+    margin-top: 8px;
+  }
+  .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px;
+    padding: 24px 24px 20px;
+    position: relative;
+    overflow: hidden;
+    animation: cardIn 0.5s ease both;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, linear-gradient(90deg, #5ee7ff, #0b7cff));
+  }
+  .card-icon { font-size: 28px; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 700; color: #e8f0ff; margin-bottom: 6px; }
+  .card-desc  { font-size: 13px; color: rgba(200,220,255,0.58); line-height: 1.55; }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── PIPELINE DIAGRAM ── */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    margin-top: 12px;
+  }
+  .pipe-step {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 18px 14px 14px;
+    text-align: center;
+    position: relative;
+    animation: cardIn 0.4s ease both;
+  }
+  .pipe-arrow {
+    flex: 0 0 32px;
+    text-align: center;
+    font-size: 20px;
+    color: rgba(255,255,255,0.25);
+  }
+  .pipe-num {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5ee7ff;
+    margin-bottom: 6px;
+  }
+  .pipe-label { font-size: 13px; font-weight: 600; color: #e8f0ff; margin-bottom: 4px; }
+  .pipe-sub   { font-size: 11px; color: rgba(200,220,255,0.5); }
+
+  /* ── FEATURE TABLE ── */
+  .feat-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .feat-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(200,220,255,0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .feat-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: rgba(200,220,255,0.78);
+    vertical-align: top;
+  }
+  .feat-table tr td:first-child {
+    font-weight: 700;
+    color: #5ee7ff;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+  }
+
+  /* ── STEM BARS ── */
+  .stem-list { width: 100%; margin-top: 16px; }
+  .stem-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    animation: cardIn 0.4s ease both;
+  }
+  .stem-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .stem-name { width: 100px; font-size: 14px; font-weight: 600; color: #e8f0ff; }
+  .stem-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .stem-bar {
+    height: 100%;
+    border-radius: 4px;
+    animation: growBar 1.2s ease both;
+  }
+  @keyframes growBar {
+    from { width: 0 !important; }
+  }
+  .stem-viz { width: 200px; font-size: 12px; color: rgba(200,220,255,0.55); }
+
+  /* ── URL CALLOUT ── */
+  .url-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(94,231,255,0.07);
+    border: 1px solid rgba(94,231,255,0.22);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-top: 24px;
+    font-size: 16px;
+    color: #5ee7ff;
+    font-family: 'SF Mono','Fira Code', monospace;
+    font-weight: 500;
+  }
+  .url-icon { font-size: 20px; }
+
+  /* ── SLIDE 1: TITLE ── */
+  #slide-1 { text-align: center; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(94,231,255,0.1);
+    border: 1px solid rgba(94,231,255,0.25);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: #5ee7ff;
+    letter-spacing: 0.04em;
+    margin-bottom: 32px;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #5ee7ff; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+  /* ── GLOW ── */
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .glow-blue  { background: #0b7cff; width: 500px; height: 400px; top: -100px; left: -80px; }
+  .glow-gold  { background: #ffd28a; width: 400px; height: 300px; bottom: -80px; right: -60px; }
+  .glow-purple{ background: #ba7cff; width: 350px; height: 350px; top: 50%; right: -60px; }
+
+</style>
+</head>
+<body>
+
+<!-- Background glows -->
+<div class="glow glow-blue"></div>
+<div class="glow glow-gold"></div>
+<div class="glow glow-purple"></div>
+
+<!-- Canvas for particle field -->
+<canvas id="bg"></canvas>
+
+<!-- Progress bar -->
+<div id="progress-bar"></div>
+<div id="counter"></div>
+<div id="nav"></div>
+
+<!-- ════════ SLIDE 1: TITLE ════════ -->
+<div class="slide active" id="slide-1">
+  <div class="badge"><span class="badge-dot"></span> Live at GitHub Pages</div>
+  <div class="eyebrow">CS Project Progress — June 2026</div>
+  <h1>STRATA</h1>
+  <p class="subtitle">AI-driven source separation · Real-time 3D music visualisation<br>Hidden orchestral layers made visible</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <span class="tag tag-blue">Python + Demucs</span>
+    <span class="tag tag-gold">librosa</span>
+    <span class="tag tag-green">Three.js</span>
+    <span class="tag tag-purple">Vite + GitHub Pages</span>
+  </div>
+  <div class="url-box">
+    <span class="url-icon">🌐</span>
+    ecenazg.github.io/strata
+  </div>
+</div>
+
+<!-- ════════ SLIDE 2: WHAT IS IT ════════ -->
+<div class="slide" id="slide-2">
+  <div class="eyebrow">Project Overview</div>
+  <h2>Music has hidden layers</h2>
+  <p class="subtitle">Strata takes any song, separates it into its four instrument stems using AI, analyzes each stem musically, and drives a cinematic 3D scene — all in real time in the browser.</p>
+  <div class="card-grid cols-4" style="width:100%">
+    <div class="card" style="--accent:#0b7cff; animation-delay:0s">
+      <div class="card-icon">🔵</div>
+      <div class="card-title">Bass</div>
+      <div class="card-desc">Shockwave rings expand from the floor on every bass hit</div>
+    </div>
+    <div class="card" style="--accent:#ffd28a; animation-delay:0.08s">
+      <div class="card-icon">🥁</div>
+      <div class="card-title">Drums</div>
+      <div class="card-desc">Particle bursts fire on drum transients</div>
+    </div>
+    <div class="card" style="--accent:#6dff8f; animation-delay:0.16s">
+      <div class="card-icon">🎵</div>
+      <div class="card-title">Melody</div>
+      <div class="card-desc">A flowing 3D ribbon colored by pitch in real time</div>
+    </div>
+    <div class="card" style="--accent:#ba7cff; animation-delay:0.24s">
+      <div class="card-icon">✨</div>
+      <div class="card-title">Harmony</div>
+      <div class="card-desc">A luminous cloud shaped by harmonic energy</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SLIDE 3: BACKEND PIPELINE ════════ -->
+<div class="slide" id="slide-3">
+  <div class="eyebrow">Python Backend</div>
+  <h2>The Analysis Pipeline</h2>
+  <p class="subtitle" style="margin-bottom:24px">Three stages transform a raw MP3 into a 60 fps feature stream</p>
+  <div class="pipeline">
+    <div class="pipe-step" style="animation-delay:0s">
+      <div class="pipe-num">Step 1</div>
+      <div style="font-size:26px;margin-bottom:8px">🎵</div>
+      <div class="pipe-label">Source Separation</div>
+      <div class="pipe-sub">Meta Demucs<br>htdemucs model</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step" style="animation-delay:0.1s">
+      <div class="pipe-num">Step 2</div>
+      <div style="font-size:26px;margin-bottom:8px">📊</div>
+      <div class="pipe-label">Feature Extraction</div>
+      <div class="pipe-sub">librosa · 44.1kHz<br>6 features per stem</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step" style="animation-delay:0.2s">
+      <div class="pipe-num">Step 3</div>
+      <div style="font-size:26px;margin-bottom:8px">⬇️</div>
+      <div class="pipe-label">Down-sample</div>
+      <div class="pipe-sub">86 fps → 60 fps<br>compact JSON output</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step" style="animation-delay:0.3s">
+      <div class="pipe-num">Output</div>
+      <div style="font-size:26px;margin-bottom:8px">📄</div>
+      <div class="pipe-label">features.json</div>
+      <div class="pipe-sub">4 stems · N frames<br>loaded by browser</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;justify-content:center">
+    <span class="tag tag-white">vocals → melody</span>
+    <span class="tag tag-white">bass → bass</span>
+    <span class="tag tag-white">drums → drums</span>
+    <span class="tag tag-white">other → harmonic</span>
+  </div>
+</div>
+
+<!-- ════════ SLIDE 4: FEATURES ════════ -->
+<div class="slide" id="slide-4">
+  <div class="eyebrow">Feature Extraction</div>
+  <h2>6 Features · 4 Stems · 60 FPS</h2>
+  <table class="feat-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Range</th>
+        <th>What it captures</th>
+        <th>Used by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>rms</td><td>0 – 1</td><td>Volume / energy level (normalized)</td><td>All layers</td></tr>
+      <tr><td>onset</td><td>0 – 1</td><td>Attack sharpness — how sudden a sound hits</td><td>Drums, beat pulse</td></tr>
+      <tr><td>spectral_centroid</td><td>Hz</td><td>Brightness — where frequency mass is centered</td><td>Melody ribbon color</td></tr>
+      <tr><td>chroma</td><td>12 × [0,1]</td><td>Per-semitone pitch energy (one entry per note)</td><td>Melody pitch, harmonic cloud</td></tr>
+      <tr><td>pitch_hz</td><td>Hz</td><td>Dominant pitch detected via YIN algorithm</td><td>Melody ribbon height</td></tr>
+      <tr><td>beat_phase</td><td>0 – 1</td><td>Position within the current beat cycle</td><td>Camera punch, bloom</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════ SLIDE 5: FOUR VISUALIZERS ════════ -->
+<div class="slide" id="slide-5">
+  <div class="eyebrow">Three.js Frontend</div>
+  <h2>Four Visualizers, One Scene</h2>
+  <div class="stem-list" style="max-width:820px">
+    <div class="stem-row" style="animation-delay:0s">
+      <div class="stem-dot" style="background:#0b7cff"></div>
+      <div class="stem-name">Bass</div>
+      <div class="stem-bar-bg"><div class="stem-bar" style="width:90%;background:linear-gradient(90deg,#0b56ff,#5ee7ff)"></div></div>
+      <div class="stem-viz">BassShockwave — torus rings pulse outward on bass hits; floor glow expands</div>
+    </div>
+    <div class="stem-row" style="animation-delay:0.1s">
+      <div class="stem-dot" style="background:#ffd28a"></div>
+      <div class="stem-name">Drums</div>
+      <div class="stem-bar-bg"><div class="stem-bar" style="width:78%;background:linear-gradient(90deg,#ff8a00,#ffd28a)"></div></div>
+      <div class="stem-viz">DrumParticles — particle bursts fire on every transient onset</div>
+    </div>
+    <div class="stem-row" style="animation-delay:0.2s">
+      <div class="stem-dot" style="background:#6dff8f"></div>
+      <div class="stem-name">Melody</div>
+      <div class="stem-bar-bg"><div class="stem-bar" style="width:84%;background:linear-gradient(90deg,#00b344,#6dff8f)"></div></div>
+      <div class="stem-viz">MelodyRibbon — flowing 3D line colored by spectral centroid, height by pitch</div>
+    </div>
+    <div class="stem-row" style="animation-delay:0.3s">
+      <div class="stem-dot" style="background:#ba7cff"></div>
+      <div class="stem-name">Harmonic</div>
+      <div class="stem-bar-bg"><div class="stem-bar" style="width:70%;background:linear-gradient(90deg,#7c2dff,#c87cff)"></div></div>
+      <div class="stem-viz">HarmonicCloud — luminous floating cloud shaped by harmonic energy</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;justify-content:center">
+    <span class="tag tag-white">UnrealBloomPass</span>
+    <span class="tag tag-white">Additive blending</span>
+    <span class="tag tag-white">Drag-to-orbit camera</span>
+    <span class="tag tag-white">Beat-pulse zoom</span>
+  </div>
+</div>
+
+<!-- ════════ SLIDE 6: PHASE SYSTEM ════════ -->
+<div class="slide" id="slide-6">
+  <div class="eyebrow">Cinematic Narrative</div>
+  <h2>8 Demo Phases</h2>
+  <p class="subtitle" style="margin-bottom:20px">The song is divided into phases that spotlight one layer at a time — telling the story of AI source separation</p>
+  <div class="card-grid cols-4" style="width:100%">
+    <div class="card" style="--accent:rgba(255,255,255,0.2); animation-delay:0s; padding:16px 18px">
+      <div style="font-size:11px;color:#5ee7ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">0–4s</div>
+      <div class="card-title">Opening</div>
+      <div class="card-desc">All layers faint — tension builds</div>
+    </div>
+    <div class="card" style="--accent:rgba(255,255,255,0.2); animation-delay:0.06s; padding:16px 18px">
+      <div style="font-size:11px;color:#5ee7ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">4–8s</div>
+      <div class="card-title">Separation</div>
+      <div class="card-desc">Signal streams animate apart visibly</div>
+    </div>
+    <div class="card" style="--accent:#0b7cff; animation-delay:0.12s; padding:16px 18px">
+      <div style="font-size:11px;color:#5ee7ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">8–16s</div>
+      <div class="card-title">Bass Layer</div>
+      <div class="card-desc">Bass at full mix, others dimmed</div>
+    </div>
+    <div class="card" style="--accent:#ffd28a; animation-delay:0.18s; padding:16px 18px">
+      <div style="font-size:11px;color:#ffd28a;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">16–24s</div>
+      <div class="card-title">Drum Transients</div>
+      <div class="card-desc">Drums spotlit, particles surge</div>
+    </div>
+    <div class="card" style="--accent:#6dff8f; animation-delay:0.24s; padding:16px 18px">
+      <div style="font-size:11px;color:#6dff8f;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">24–32s</div>
+      <div class="card-title">Melody Ribbon</div>
+      <div class="card-desc">Melody ribbon glows at full intensity</div>
+    </div>
+    <div class="card" style="--accent:#ba7cff; animation-delay:0.30s; padding:16px 18px">
+      <div style="font-size:11px;color:#c87cff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">32–40s</div>
+      <div class="card-title">Harmonic Field</div>
+      <div class="card-desc">Cloud expands to fill the space</div>
+    </div>
+    <div class="card" style="--accent:linear-gradient(90deg,#5ee7ff,#ba7cff); animation-delay:0.36s; padding:16px 18px">
+      <div style="font-size:11px;color:#5ee7ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">40s+</div>
+      <div class="card-title">Combined Strata</div>
+      <div class="card-desc">All four layers at full power</div>
+    </div>
+    <div class="card" style="--accent:rgba(255,255,255,0.15); animation-delay:0.42s; padding:16px 18px">
+      <div style="font-size:11px;color:#5ee7ff;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Final 8s</div>
+      <div class="card-title">Closing</div>
+      <div class="card-desc">Outro lockup fades in</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SLIDE 7: TECH STACK ════════ -->
+<div class="slide" id="slide-7">
+  <div class="eyebrow">Architecture</div>
+  <h2>Tech Stack</h2>
+  <div class="card-grid cols-2" style="max-width:820px">
+    <div class="card" style="--accent:#4cc9ff; animation-delay:0s">
+      <div class="card-icon">🐍</div>
+      <div class="card-title">Python Backend</div>
+      <div class="card-desc">
+        <strong style="color:#5ee7ff">Demucs (htdemucs)</strong> — Meta AI source separation model<br><br>
+        <strong style="color:#5ee7ff">librosa</strong> — audio feature extraction (RMS, onset, chroma, pitch, beat)<br><br>
+        <strong style="color:#5ee7ff">NumPy</strong> — fast array math<br><br>
+        Outputs a single <code style="color:#ffd28a">features.json</code> that drives the entire frontend
+      </div>
+    </div>
+    <div class="card" style="--accent:#6dff8f; animation-delay:0.1s">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">JavaScript Frontend</div>
+      <div class="card-desc">
+        <strong style="color:#6dff8f">Three.js</strong> — WebGL 3D scene, 4 custom visualizers, post-processing<br><br>
+        <strong style="color:#6dff8f">Vite</strong> — fast HMR dev server, optimized static build<br><br>
+        <strong style="color:#6dff8f">lil-gui</strong> — debug panel (press G), layer toggles, video recorder<br><br>
+        <strong style="color:#6dff8f">GitHub Pages</strong> — zero-server static hosting, instant deploy
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <span class="tag tag-white">No backend at runtime</span>
+    <span class="tag tag-white">Pure browser WebGL</span>
+    <span class="tag tag-white">60 fps target</span>
+    <span class="tag tag-white">Built-in video recorder</span>
+    <span class="tag tag-white">Click-to-seek progress bar</span>
+  </div>
+</div>
+
+<!-- ════════ SLIDE 8: DEPLOYED ════════ -->
+<div class="slide" id="slide-8" style="text-align:center">
+  <div class="badge"><span class="badge-dot"></span> Deployed &amp; Live</div>
+  <div class="eyebrow">Progress Milestone</div>
+  <h2>It's live. ✅</h2>
+  <p class="subtitle">The full pipeline — AI separation → feature extraction → real-time 3D — runs in any modern browser, deployed on GitHub Pages with no server needed.</p>
+  <div class="card-grid cols-2" style="max-width:720px;margin-bottom:24px">
+    <div class="card" style="--accent:#6dff8f; text-align:left">
+      <div class="card-title">✅ Completed</div>
+      <div class="card-desc" style="margin-top:8px">
+        Python source separation pipeline<br>
+        librosa feature extraction (6 features × 4 stems)<br>
+        AudioSyncManager (play/pause/seek)<br>
+        4 Three.js visualizers<br>
+        Phase narrative system (8 phases)<br>
+        Cinematic overlay + progress bar<br>
+        Built-in canvas video recorder<br>
+        GitHub Pages deployment
+      </div>
+    </div>
+    <div class="card" style="--accent:#ffd28a; text-align:left">
+      <div class="card-title">🔜 Next Steps</div>
+      <div class="card-desc" style="margin-top:8px">
+        Upload any song (drag &amp; drop)<br>
+        WebSocket real-time backend mode<br>
+        More visualizers (waveform, spectrum)<br>
+        Server-side MP4 export (ffmpeg)<br>
+        Chord / key detection display<br>
+        Mobile touch optimization
+      </div>
+    </div>
+  </div>
+  <div class="url-box">
+    <span class="url-icon">🚀</span>
+    ecenazg.github.io/strata
+  </div>
+</div>
+
+<script>
+// ── PARTICLE BACKGROUND ──
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+canvas.width = 1280; canvas.height = 720;
+const particles = Array.from({length: 120}, () => ({
+  x: Math.random() * 1280,
+  y: Math.random() * 720,
+  r: Math.random() * 1.4 + 0.3,
+  vx: (Math.random() - 0.5) * 0.22,
+  vy: (Math.random() - 0.5) * 0.18,
+  hue: Math.random() < 0.5 ? 210 : Math.random() < 0.5 ? 270 : 40,
+  op: Math.random() * 0.4 + 0.08,
+}));
+function drawBg() {
+  ctx.clearRect(0, 0, 1280, 720);
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = 1280; if (p.x > 1280) p.x = 0;
+    if (p.y < 0) p.y = 720;  if (p.y > 720) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${p.hue},80%,70%,${p.op})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ── SLIDE SYSTEM ──
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+let autoTimer = null;
+const AUTO_INTERVAL = 6000; // ms per slide
+
+const nav = document.getElementById('nav');
+const counter = document.getElementById('counter');
+const bar = document.getElementById('progress-bar');
+
+// Build nav dots
+slides.forEach((_, i) => {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.addEventListener('click', () => goTo(i));
+  nav.appendChild(dot);
+});
+
+function updateUI() {
+  bar.style.width = `${((current + 1) / total) * 100}%`;
+  counter.textContent = `${current + 1} / ${total}`;
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+}
+
+function goTo(next) {
+  if (next === current) return;
+  clearTimeout(autoTimer);
+  slides[current].classList.remove('active');
+  slides[current].classList.add('out');
+  setTimeout(() => slides[current - (next > current ? 0 : 0)].classList.remove('out'), 700);
+  const prev = current;
+  current = next;
+  slides[prev].classList.remove('active');
+  setTimeout(() => slides[prev].classList.remove('out'), 700);
+  slides[current].classList.remove('out');
+  slides[current].classList.add('active');
+  updateUI();
+  scheduleAuto();
+}
+
+function next() {
+  const n = (current + 1) % total;
+  slides[current].classList.add('out');
+  slides[current].classList.remove('active');
+  setTimeout(() => slides[current].classList.remove('out'), 700); // stale ref, but fine
+  const prev = current;
+  current = n;
+  setTimeout(() => slides[prev].classList.remove('out'), 700);
+  slides[current].classList.add('active');
+  updateUI();
+}
+
+function scheduleAuto() {
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => { next(); scheduleAuto(); }, AUTO_INTERVAL);
+}
+
+// Keyboard nav
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { clearTimeout(autoTimer); next(); scheduleAuto(); }
+  if (e.key === 'ArrowLeft') {
+    clearTimeout(autoTimer);
+    const n = (current - 1 + total) % total;
+    goTo(n);
+  }
+});
+
+updateUI();
+scheduleAuto();
+</script>
+</body>
+</html>
