@@ -1,0 +1,209 @@
+{
+  "features_file": "/Users/humeyrapolat/Documents/AI/strata/features.json",
+  "duration_s": 262.571,
+  "fps": 86.133,
+  "frames": 22617,
+  "mappings": [
+    {
+      "layer": "Bass",
+      "frontend": "frontend/src/visualizers/BassShockwave.js",
+      "audio_features": "bass.rms",
+      "visual_controls": "shockwave energy, floor scale, ring spread, ring opacity",
+      "formula": "bass_energy = clamp(bass.rms * 2.8, 0, 1)",
+      "viewer_reading": "low-frequency energy expands the blue floor shockwaves"
+    },
+    {
+      "layer": "Drums",
+      "frontend": "frontend/src/visualizers/DrumParticles.js",
+      "audio_features": "drums.onset, drums.rms",
+      "visual_controls": "particle burst trigger, burst strength, particle size",
+      "formula": "hit = max(drums.onset, drums.rms * 0.85); burst if hit > 0.32",
+      "viewer_reading": "transient drum hits create gold particle impacts"
+    },
+    {
+      "layer": "Melody",
+      "frontend": "frontend/src/visualizers/MelodyRibbon.js",
+      "audio_features": "melody.pitch_hz, melody.rms",
+      "visual_controls": "ribbon vertical target, helix depth, line opacity",
+      "formula": "target_y = log2(pitch / 440) * 1.25, clipped to [-1.65, 1.65]",
+      "viewer_reading": "pitched material bends the green ribbon through space"
+    },
+    {
+      "layer": "Harmony",
+      "frontend": "frontend/src/visualizers/HarmonicCloud.js",
+      "audio_features": "harmonic.rms, harmonic.spectral_centroid",
+      "visual_controls": "cloud/ring scale, opacity, point size, brightness",
+      "formula": "brightness = clamp(spectral_centroid / 6500, 0, 1)",
+      "viewer_reading": "dense harmonic texture forms the purple atmospheric field"
+    }
+  ],
+  "layer_statistics": {
+    "bass": {
+      "feature": "bass.rms",
+      "rms": {
+        "min": 0.0,
+        "mean": 0.3734,
+        "p50": 0.3606,
+        "p95": 0.8778,
+        "max": 1.0
+      },
+      "shockwave_energy": {
+        "min": 0.0,
+        "mean": 0.629,
+        "p50": 1.0,
+        "p95": 1.0,
+        "max": 1.0
+      },
+      "floor_scale": {
+        "min": 1.0,
+        "mean": 1.2642,
+        "p50": 1.42,
+        "p95": 1.42,
+        "max": 1.42
+      }
+    },
+    "drums": {
+      "feature": "max(drums.onset, drums.rms * 0.85)",
+      "hit": {
+        "min": 0.0001,
+        "mean": 0.1708,
+        "p50": 0.0705,
+        "p95": 0.6926,
+        "max": 1.0
+      },
+      "burst_strength": {
+        "min": 0.0001,
+        "mean": 0.2271,
+        "p50": 0.0951,
+        "p95": 0.935,
+        "max": 1.0
+      },
+      "burst_events": 579,
+      "burst_events_per_min": 132.31
+    },
+    "melody": {
+      "features": "melody.pitch_hz, melody.rms",
+      "active_pitch_percent": 64.31,
+      "pitch_hz_active": {
+        "min": 60.0,
+        "mean": 65.0859,
+        "p50": 65.0,
+        "p95": 70.0,
+        "max": 71.0
+      },
+      "target_y": {
+        "min": -0.2167,
+        "mean": 0.0378,
+        "p50": 0.0,
+        "p95": 0.325,
+        "max": 0.3792
+      },
+      "opacity": {
+        "min": 0.4502,
+        "mean": 0.6908,
+        "p50": 0.6476,
+        "p95": 0.94,
+        "max": 0.94
+      }
+    },
+    "harmonic": {
+      "features": "harmonic.rms, harmonic.spectral_centroid",
+      "rms": {
+        "min": 0.0002,
+        "mean": 0.3551,
+        "p50": 0.3381,
+        "p95": 0.7271,
+        "max": 1.0
+      },
+      "brightness": {
+        "min": 0.0645,
+        "mean": 0.2823,
+        "p50": 0.2317,
+        "p95": 0.5604,
+        "max": 1.0
+      },
+      "scale": {
+        "min": 0.826,
+        "mean": 1.1157,
+        "p50": 1.0961,
+        "p95": 1.4291,
+        "max": 1.7088
+      },
+      "cloud_size": {
+        "min": 0.0326,
+        "mean": 0.0473,
+        "p50": 0.046,
+        "p95": 0.0623,
+        "max": 0.0798
+      }
+    }
+  },
+  "control_correlation": {
+    "bass": {
+      "bass": 1.0,
+      "drums": 0.21,
+      "melody": 0.0294,
+      "harmonic": -0.0825
+    },
+    "drums": {
+      "bass": 0.21,
+      "drums": 1.0,
+      "melody": 0.0533,
+      "harmonic": -0.1577
+    },
+    "melody": {
+      "bass": 0.0294,
+      "drums": 0.0533,
+      "melody": 1.0,
+      "harmonic": -0.063
+    },
+    "harmonic": {
+      "bass": -0.0825,
+      "drums": -0.1577,
+      "melody": -0.063,
+      "harmonic": 1.0
+    }
+  },
+  "phase_mapping": [
+    {
+      "phase": "opening",
+      "time_s": "0-4",
+      "visual_goal": "introduce system and central energy core"
+    },
+    {
+      "phase": "source separation",
+      "time_s": "4-8",
+      "visual_goal": "split one waveform into four visual streams"
+    },
+    {
+      "phase": "bass",
+      "time_s": "8-16",
+      "visual_goal": "foreground low-frequency shockwaves"
+    },
+    {
+      "phase": "drums",
+      "time_s": "16-24",
+      "visual_goal": "foreground transient particle impacts"
+    },
+    {
+      "phase": "melody",
+      "time_s": "24-32",
+      "visual_goal": "foreground pitched ribbon motion"
+    },
+    {
+      "phase": "harmony",
+      "time_s": "32-40",
+      "visual_goal": "foreground atmospheric cloud/ring field"
+    },
+    {
+      "phase": "combined",
+      "time_s": "40-254.6",
+      "visual_goal": "all stems interact in one 3D scene"
+    },
+    {
+      "phase": "closing",
+      "time_s": "254.6-262.6",
+      "visual_goal": "summarize AI source separation + real-time visualization"
+    }
+  ]
+}

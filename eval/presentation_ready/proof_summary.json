@@ -1,0 +1,37 @@
+{
+  "project": "Strata",
+  "claim": "AI source separation plus real-time 3D audiovisual mapping",
+  "demo_track": "test_music.mp3",
+  "technical_evaluation": {
+    "reconstruction_snr_db": 28.49,
+    "residual_rms_dbfs": -41.55,
+    "mean_abs_stem_correlation": 0.052,
+    "ground_truth_note": "No isolated ground-truth stems are available for the selected commercial track; evaluation focuses on technical consistency and stem distinctness."
+  },
+  "visual_mapping_evaluation": {
+    "bass_floor_scale_max": 1.42,
+    "drum_burst_events": 579,
+    "drum_burst_events_per_min": 132.31,
+    "melody_active_pitch_percent": 64.31,
+    "harmonic_scale_max": 1.709
+  },
+  "live_demo_controls": {
+    "click": "play / pause",
+    "drag": "orbit camera",
+    "scroll": "zoom",
+    "progress_line": "seek",
+    "arrow_left_right": "jump 10 seconds",
+    "g": "debug GUI",
+    "r": "record video"
+  },
+  "recommended_demo_timestamps_s": {
+    "opening": 0,
+    "bass": 11,
+    "drums": 20,
+    "melody": 28,
+    "harmony": 36,
+    "combined": 95,
+    "energetic_combined": 185,
+    "closing": 256
+  }
+}

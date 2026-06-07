@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+
+frontend/node_modules/
+frontend/dist/
+
+.DS_Store
+
+*.webm
+*.mp4
+
+stems/
+
+.env
+.venv/
+venv/

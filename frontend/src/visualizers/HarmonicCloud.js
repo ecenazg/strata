@@ -3,52 +3,136 @@ import * as THREE from "three";
 export class HarmonicCloud {
   constructor(scene) {
     this.scene = scene;
-    this.group = new THREE.Group(); // Birden fazla objeyi gruplayacağız
+    this.group = new THREE.Group();
+    this.cloudCount = 520;
+    this.cloudPositions = new Float32Array(this.cloudCount * 3);
+    this.basePositions = new Float32Array(this.cloudCount * 3);
+    this.cloudColors = new Float32Array(this.cloudCount * 3);
+    this.energy = 0;
+    this.mix = 1;
 
-    // İç içe geçecek 3 farklı halka (Jiroskop yapısı)
     const geometries = [
-      new THREE.IcosahedronGeometry(4, 1),
-      new THREE.IcosahedronGeometry(4.5, 0),
-      new THREE.IcosahedronGeometry(5, 1),
+      new THREE.TorusGeometry(1.65, 0.01, 8, 180),
+      new THREE.TorusGeometry(2.15, 0.012, 8, 180),
+      new THREE.TorusGeometry(2.65, 0.01, 8, 180),
     ];
 
     this.meshes = geometries.map((geo, index) => {
       const material = new THREE.MeshBasicMaterial({
-        color: index === 1 ? 0x61212d : 0xfefefe, // Mor ve Derin Mavi karışımı
-        wireframe: true,
+        color: index === 1 ? 0xba7cff : 0x7c4dff,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.16,
         blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       const mesh = new THREE.Mesh(geo, material);
+      mesh.rotation.x = Math.PI / 2 + index * 0.55;
+      mesh.rotation.y = index * 0.7;
       this.group.add(mesh);
       return mesh;
     });
 
-    this.group.position.set(0, 3, -6);
+    this._createAuroraCloud();
+
+    this.group.position.set(0, 1.35, -3.25);
     this.scene.add(this.group);
   }
 
   update(harmonicData) {
-    const targetScale = 1 + harmonicData.rms * 1.5;
+    this.energy += (harmonicData.rms - this.energy) * 0.09;
+    const brightness = Math.min(1, harmonicData.spectral_centroid / 6500);
+    const targetScale = 0.78 + this.energy * 0.85 + brightness * 0.12;
     this.group.scale.lerp(
       new THREE.Vector3(targetScale, targetScale, targetScale),
       0.1
     );
 
-    // Her halka farklı hızlarda ve yönlerde dönsün (Kompleks algısı)
-    this.meshes[0].rotation.x += 0.005;
+    this.meshes[0].rotation.x += 0.003;
     this.meshes[0].rotation.y += 0.002;
 
-    this.meshes[1].rotation.y -= 0.004;
-    this.meshes[1].rotation.z += 0.003;
+    this.meshes[1].rotation.y -= 0.0028;
+    this.meshes[1].rotation.z += 0.002;
 
-    this.meshes[2].rotation.x -= 0.002;
-    this.meshes[2].rotation.z -= 0.001;
+    this.meshes[2].rotation.x -= 0.0018;
+    this.meshes[2].rotation.z -= 0.0012;
 
-    // Müziğe göre parlaklık artışı
-    this.meshes.forEach((mesh) => {
-      mesh.material.opacity = 0.05 + harmonicData.rms * 0.4;
+    this.meshes.forEach((mesh, index) => {
+      mesh.material.opacity =
+        Math.min(
+        0.5,
+        0.08 + this.energy * 0.26 + brightness * 0.08 - index * 0.015
+      ) * this.mix;
     });
+
+    this._updateAuroraCloud(brightness);
+  }
+
+  _createAuroraCloud() {
+    const colorA = new THREE.Color(0x7c4dff);
+    const colorB = new THREE.Color(0xba7cff);
+    const colorC = new THREE.Color(0xff9cff);
+
+    for (let i = 0; i < this.cloudCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const radius = 0.65 + Math.random() * 2.35;
+      const band = (Math.random() - 0.5) * 0.78;
+      const y = band + Math.sin(theta * 2) * 0.26;
+
+      this.basePositions[i * 3] = Math.cos(theta) * radius;
+      this.basePositions[i * 3 + 1] = y;
+      this.basePositions[i * 3 + 2] = Math.sin(theta) * radius * 0.62;
+
+      this.cloudPositions[i * 3] = this.basePositions[i * 3];
+      this.cloudPositions[i * 3 + 1] = this.basePositions[i * 3 + 1];
+      this.cloudPositions[i * 3 + 2] = this.basePositions[i * 3 + 2];
+
+      const color = i % 7 === 0 ? colorC : i % 2 === 0 ? colorA : colorB;
+      this.cloudColors[i * 3] = color.r;
+      this.cloudColors[i * 3 + 1] = color.g;
+      this.cloudColors[i * 3 + 2] = color.b;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(this.cloudPositions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(this.cloudColors, 3));
+    this.cloudPositionAttribute = geometry.getAttribute("position");
+
+    this.cloudMaterial = new THREE.PointsMaterial({
+      size: 0.035,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.18,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    this.cloud = new THREE.Points(geometry, this.cloudMaterial);
+    this.group.add(this.cloud);
+  }
+
+  _updateAuroraCloud(brightness) {
+    const time = Date.now() * 0.00055;
+
+    for (let i = 0; i < this.cloudCount; i++) {
+      const x = this.basePositions[i * 3];
+      const y = this.basePositions[i * 3 + 1];
+      const z = this.basePositions[i * 3 + 2];
+      const wave = Math.sin(time * 3 + i * 0.07 + x * 0.8) * (0.16 + this.energy * 0.28);
+
+      this.cloudPositions[i * 3] = x + Math.sin(time + z) * 0.08;
+      this.cloudPositions[i * 3 + 1] = y + wave;
+      this.cloudPositions[i * 3 + 2] = z + Math.cos(time * 1.7 + x) * 0.08;
+    }
+
+    this.cloudPositionAttribute.needsUpdate = true;
+    this.cloud.rotation.y += 0.0016;
+    this.cloudMaterial.opacity =
+      Math.min(0.56, 0.12 + this.energy * 0.42 + brightness * 0.1) * this.mix;
+    this.cloudMaterial.size = 0.028 + this.energy * 0.04 + brightness * 0.018;
+  }
+
+  setMix(mix) {
+    this.mix += (mix - this.mix) * 0.08;
+    this.group.visible = this.mix > 0.03;
   }
 }
