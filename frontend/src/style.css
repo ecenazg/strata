@@ -25,6 +25,12 @@ body {
 body {
   background: #080b14;
   --beat-flash: 0;
+  --profile-flash-warm: 255, 207, 122;
+  --profile-flash-cool: 76, 201, 255;
+  --stem-bass: #4cc9ff;
+  --stem-drums: #ffcf7a;
+  --stem-melody: #6dff8f;
+  --stem-harmony: #ba7cff;
 }
 
 .strata-canvas {
@@ -49,8 +55,8 @@ body {
   inset: 0;
   opacity: calc(var(--beat-flash) * 0.42);
   background:
-    radial-gradient(circle at 50% 48%, rgba(255, 207, 122, 0.34), transparent 18%),
-    radial-gradient(circle at 50% 50%, rgba(76, 201, 255, 0.24), transparent 46%);
+    radial-gradient(circle at 50% 48%, rgba(var(--profile-flash-warm), 0.34), transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(var(--profile-flash-cool), 0.24), transparent 46%);
   mix-blend-mode: screen;
 }
 
@@ -147,6 +153,58 @@ body {
   text-transform: uppercase;
 }
 
+.track-picker {
+  position: absolute;
+  top: clamp(54px, 8vh, 82px);
+  right: clamp(24px, 4vw, 56px);
+  display: grid;
+  grid-template-columns: auto minmax(168px, 240px);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(150, 190, 255, 0.18);
+  background: rgba(8, 12, 24, 0.42);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.track-picker label {
+  color: rgba(238, 244, 255, 0.62);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.track-picker select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid rgba(94, 231, 255, 0.24);
+  border-radius: 0;
+  color: #f7fbff;
+  background: rgba(13, 20, 36, 0.86);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.track-picker span {
+  grid-column: 1 / -1;
+  color: rgba(174, 184, 204, 0.78);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.track-picker .visual-profile {
+  grid-column: 1 / -1;
+  color: rgba(247, 251, 255, 0.86);
+  text-align: right;
+}
+
 .legend-item {
   display: inline-flex;
   gap: 7px;
@@ -162,19 +220,19 @@ body {
 }
 
 .legend-item.bass {
-  color: #4cc9ff;
+  color: var(--stem-bass);
 }
 
 .legend-item.drums {
-  color: #ffcf7a;
+  color: var(--stem-drums);
 }
 
 .legend-item.melody {
-  color: #6dff8f;
+  color: var(--stem-melody);
 }
 
 .legend-item.harmony {
-  color: #ba7cff;
+  color: var(--stem-harmony);
 }
 
 .is-recording .audio-state {
@@ -309,6 +367,17 @@ body {
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px 12px;
+  }
+
+  .track-picker {
+    top: 84px;
+    right: 22px;
+    grid-template-columns: 1fr;
+    width: min(240px, calc(100vw - 44px));
+  }
+
+  .track-picker span {
+    text-align: left;
   }
 
   .phase-label {

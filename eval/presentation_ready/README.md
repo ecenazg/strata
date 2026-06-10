@@ -85,6 +85,7 @@ Defense sentence:
 
 ## Demo Controls
 
+- Track selector: switch between prepared demo tracks
 - Click canvas: play / pause
 - Drag scene: orbit camera
 - Scroll / trackpad: zoom in or out

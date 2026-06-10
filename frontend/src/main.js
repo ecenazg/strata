@@ -4,11 +4,13 @@ import { BassShockwave } from "./visualizers/BassShockwave.js";
 import { MelodyRibbon } from "./visualizers/MelodyRibbon.js";
 import { DrumParticles } from "./visualizers/DrumParticles.js";
 import { HarmonicCloud } from "./visualizers/HarmonicCloud.js";
+import { orderedStemColors, resolveVisualProfile } from "./visualProfiles.js";
 import GUI from "lil-gui";
 import "./style.css";
 
 const sceneManager = new SceneManager();
 const overlay = createCinematicOverlay();
+let activeVisualProfile = resolveVisualProfile(null);
 
 const bassVisualizer = new BassShockwave(sceneManager.scene);
 bassVisualizer.mesh.position.set(0, -1.45, -1.3);
@@ -22,6 +24,7 @@ drumVisualizer.points.position.set(0, 0.95, -2.15);
 const harmonicVisualizer = new HarmonicCloud(sceneManager.scene);
 harmonicVisualizer.group.position.set(0, 1.35, -3.25);
 harmonicVisualizer.group.scale.setScalar(0.62);
+applyVisualProfile(activeVisualProfile);
 
 const gui = new GUI({ title: "Strata Kontrol Merkezi" });
 gui.domElement.classList.add("debug-panel");
@@ -113,6 +116,8 @@ const btnRecord = fExport
 let latestFrame = null;
 let activePhase = "opening";
 let previousPhase = "opening";
+let availableTracks = [];
+let selectedTrack = null;
 
 const onFrameReceived = (frameData) => {
   latestFrame = frameData;
@@ -141,6 +146,22 @@ const onFrameReceived = (frameData) => {
 };
 
 const onPlaybackEnded = () => {
+  resetPlaybackVisualState("click to replay", "ready for replay");
+};
+
+const onBackendReady = (message) => {
+  if (message.track_id) {
+    const track = availableTracks.find((item) => item.id === message.track_id);
+    if (track) {
+      selectedTrack = track;
+      overlay.trackSelect.value = track.id;
+      applyTrackVisualProfile(track);
+      updateTrackStatus(`ready · ${formatTime(message.duration ?? 0)}`);
+    }
+  }
+};
+
+function resetPlaybackVisualState(stateText = "track ready", phaseText = "opening sequence") {
   activePhase = "opening";
   previousPhase = "opening";
   latestFrame = null;
@@ -149,23 +170,27 @@ const onPlaybackEnded = () => {
   document.body.classList.remove("is-playing", "phase-pulse");
   document.body.dataset.phase = "opening";
   overlay.closing.hidden = true;
-  overlay.phase.textContent = "ready for replay";
-  overlay.state.textContent = "click to replay";
+  overlay.phase.textContent = phaseText;
+  overlay.state.textContent = stateText;
   overlay.progress.style.transform = "scaleX(0)";
   overlay.progressTrack.setAttribute("aria-valuenow", "0");
-};
+}
 
 const audioManager = new AudioSyncManager(
   onFrameReceived,
-  `${import.meta.env.BASE_URL}audio/test_music.mp3?v=trimmed-30s`,
+  null,
   onPlaybackEnded,
-  `${import.meta.env.BASE_URL}features.json`,
+  onBackendReady,
 );
+loadTrackManifest();
+
 window.strataDemo = {
   play: () => audioManager.play(),
   pause: () => audioManager.pause(),
   seek: (timeSeconds) => audioManager.seek(timeSeconds),
   toggle: () => audioManager.togglePlayback(),
+  tracks: () => availableTracks,
+  selectTrack: (trackId) => selectTrackById(trackId),
 };
 
 let isScrubbing = false;
@@ -196,7 +221,7 @@ overlay.progressTrack.addEventListener("pointerup", (event) => {
 });
 
 window.addEventListener("click", (e) => {
-  if (e.target.closest(".lil-gui, .progress-track")) return;
+  if (e.target.closest(".lil-gui, .progress-track, .track-picker")) return;
 
   const isPlaying = audioManager.togglePlayback();
 
@@ -206,6 +231,7 @@ window.addEventListener("click", (e) => {
     overlay.state.textContent = "playback started";
   } else {
     console.log("Tıklandı, müzik duraklatılıyor...");
+    document.body.classList.remove("is-playing");
     overlay.state.textContent = "playback paused";
   }
 });
@@ -257,6 +283,12 @@ function createCinematicOverlay() {
       <span class="legend-item melody"><i></i>Melody</span>
       <span class="legend-item harmony"><i></i>Harmony</span>
     </div>
+    <div class="track-picker" data-track-picker>
+      <label for="track-select">Track</label>
+      <select id="track-select" data-track-select aria-label="Demo track"></select>
+      <span class="visual-profile" data-profile>cinematic</span>
+      <span data-track-status>loading tracks</span>
+    </div>
     <div
       class="progress-track"
       data-seek-track
@@ -280,7 +312,86 @@ function createCinematicOverlay() {
     progress: root.querySelector("[data-progress]"),
     progressTrack: root.querySelector("[data-seek-track]"),
     closing: root.querySelector("[data-closing]"),
+    trackPicker: root.querySelector("[data-track-picker]"),
+    trackSelect: root.querySelector("[data-track-select]"),
+    trackStatus: root.querySelector("[data-track-status]"),
+    profile: root.querySelector("[data-profile]"),
   };
+}
+
+async function loadTrackManifest() {
+  try {
+    const response = await fetch("/tracks.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json();
+    availableTracks = (manifest.tracks ?? []).filter((track) => track.prepared !== false);
+    if (!availableTracks.length) {
+      updateTrackStatus("no prepared tracks");
+      overlay.trackSelect.disabled = true;
+      return;
+    }
+
+    selectedTrack =
+      availableTracks.find((track) => track.id === manifest.defaultTrackId) ??
+      availableTracks[0];
+    audioManager.trackId = selectedTrack.id;
+    audioManager.audio.src = selectedTrack.audioUrl;
+    applyTrackVisualProfile(selectedTrack);
+    populateTrackSelector();
+    updateTrackStatus(`prepared ${availableTracks.length} track`);
+  } catch (error) {
+    console.error("Could not load track manifest:", error);
+    updateTrackStatus("track manifest missing");
+    overlay.trackSelect.disabled = true;
+  }
+}
+
+function populateTrackSelector() {
+  overlay.trackSelect.innerHTML = "";
+  for (const track of availableTracks) {
+    const option = document.createElement("option");
+    option.value = track.id;
+    option.textContent = track.artist ? `${track.title} · ${track.artist}` : track.title;
+    overlay.trackSelect.appendChild(option);
+  }
+  overlay.trackSelect.value = selectedTrack.id;
+  overlay.trackSelect.addEventListener("change", () => {
+    selectTrackById(overlay.trackSelect.value);
+  });
+}
+
+function selectTrackById(trackId) {
+  const track = availableTracks.find((item) => item.id === trackId);
+  if (!track) return;
+
+  selectedTrack = track;
+  audioManager.setTrack(track);
+  applyTrackVisualProfile(track);
+  resetPlaybackVisualState("track selected", "opening sequence");
+  updateTrackStatus("selected · click to play");
+}
+
+function updateTrackStatus(text) {
+  overlay.trackStatus.textContent = text;
+}
+
+function applyTrackVisualProfile(track) {
+  activeVisualProfile = resolveVisualProfile(track);
+  applyVisualProfile(activeVisualProfile);
+  overlay.profile.textContent = activeVisualProfile.label;
+}
+
+function applyVisualProfile(profile) {
+  sceneManager.applyVisualProfile(profile);
+  bassVisualizer.applyVisualProfile(profile);
+  drumVisualizer.applyVisualProfile(profile);
+  melodyVisualizer.applyVisualProfile(profile);
+  harmonicVisualizer.applyVisualProfile(profile);
+
+  const stemColors = orderedStemColors(profile);
+  for (const [stem, color] of Object.entries(stemColors)) {
+    document.body.style.setProperty(`--stem-${stem}`, color);
+  }
 }
 
 function getDemoPhase(t = 0, duration = 0) {
@@ -355,7 +466,14 @@ function applyPhaseMix(phase) {
     harmony: { bass: 0.2, drums: 0.12, melody: 0.28, harmonic: 1 },
     combined: { bass: 1, drums: 0.82, melody: 0.92, harmonic: 0.9 },
   };
-  const mix = mixes[phase] ?? mixes.combined;
+  const baseMix = mixes[phase] ?? mixes.combined;
+  const minimumMix = activeVisualProfile.minimumMix ?? {};
+  const mix = {
+    bass: Math.max(baseMix.bass, minimumMix.bass ?? 0),
+    drums: Math.max(baseMix.drums, minimumMix.drums ?? 0),
+    melody: Math.max(baseMix.melody, minimumMix.melody ?? 0),
+    harmonic: Math.max(baseMix.harmonic, minimumMix.harmonic ?? 0),
+  };
 
   bassVisualizer.setMix(mix.bass);
   drumVisualizer.setMix(mix.drums);

@@ -42,7 +42,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Set, Optional
+from typing import Any, Dict, Set, Optional
 
 import sys
 from pathlib import Path
@@ -100,10 +100,24 @@ class StrataServer:
     Call run() to start serving.
     """
 
-    def __init__(self, timeline: FeatureTimeline) -> None:
-        self._tl      = timeline
-        self._player  = Player(timeline)
-        self._stems   = StemState(timeline.stems)
+    def __init__(
+        self,
+        timeline: FeatureTimeline,
+        tracks: Optional[Dict[str, dict[str, Any]]] = None,
+        default_track_id: Optional[str] = None,
+    ) -> None:
+        self._tracks = tracks or {}
+        if self._tracks:
+            self._current_track_id = default_track_id or next(iter(self._tracks))
+            if self._current_track_id not in self._tracks:
+                self._current_track_id = next(iter(self._tracks))
+            timeline = self._tracks[self._current_track_id]["timeline"]
+        else:
+            self._current_track_id = None
+
+        self._tl = timeline
+        self._player = Player(timeline)
+        self._stems = StemState(timeline.stems)
         self._clients: Set = set()
 
     # ------------------------------------------------------------------ #
@@ -134,16 +148,8 @@ class StrataServer:
         client_addr = ws.remote_address
         log.info("Client connected: %s (total: %d)", client_addr, len(self._clients))
 
-        # Send initial ready message
-        await ws.send(json.dumps({
-            "type":       "ready",
-            "duration":   self._tl.duration,
-            "sr":         self._tl.sr,
-            "hop_length": self._tl.hop_length,
-            "fps":        self._tl.fps,
-            "stems":      self._tl.stems,
-            "stem_state": self._stems.to_dict(),
-        }))
+        # Send initial ready message.
+        await ws.send(json.dumps(self._ready_payload("ready")))
 
         try:
             async for raw in ws:
@@ -178,8 +184,16 @@ class StrataServer:
         elif cmd == "seek":
             t = float(msg.get("t", 0.0))
             await self._player.seek(t)
-            await self._broadcast({"type": "seeked", "t": t})
+            await self._broadcast({
+                "type": "seeked",
+                "t": t,
+                "track_id": self._current_track_id,
+            })
             log.info("CMD seek t=%.2f", t)
+
+        elif cmd == "track":
+            track_id = msg.get("track_id") or msg.get("trackId")
+            await self._select_track(track_id)
 
         elif cmd == "speed":
             factor = float(msg.get("factor", 1.0))
@@ -214,12 +228,25 @@ class StrataServer:
     async def _broadcast_loop(self) -> None:
         """Continuously pull frames from the Player and broadcast to all clients."""
         while True:
-            frame, t = await self._player.__anext__()
+            player = self._player
+            try:
+                frame, t = await asyncio.wait_for(
+                    player.__anext__(),
+                    timeout=max(config.WS_FRAME_INTERVAL * 4, 0.05),
+                )
+            except asyncio.TimeoutError:
+                continue
+
+            if player is not self._player:
+                continue
             if not self._clients:
                 continue
 
             if frame is None:
-                await self._broadcast({"type": "ended"})
+                await self._broadcast({
+                    "type": "ended",
+                    "track_id": self._current_track_id,
+                })
                 log.info("Playback ended.")
                 continue
 
@@ -243,6 +270,60 @@ class StrataServer:
     # Frame serialisation
     # ------------------------------------------------------------------ #
 
+    async def _select_track(self, track_id: Optional[str]) -> None:
+        if not self._tracks:
+            await self._broadcast({
+                "type": "track_error",
+                "message": "Track switching requires a track manifest on the backend.",
+            })
+            log.warning("CMD track ignored: no track manifest loaded")
+            return
+
+        if not track_id or track_id not in self._tracks:
+            await self._broadcast({
+                "type": "track_error",
+                "message": f"Unknown track: {track_id}",
+            })
+            log.warning("CMD track unknown id=%s", track_id)
+            return
+
+        await self._player.pause()
+        self._current_track_id = track_id
+        self._tl = self._tracks[track_id]["timeline"]
+        self._player = Player(self._tl)
+        self._stems = StemState(self._tl.stems)
+        await self._broadcast(self._ready_payload("track_ready"))
+        log.info("CMD track id=%s", track_id)
+
+    def _ready_payload(self, msg_type: str) -> dict:
+        return {
+            "type": msg_type,
+            "track_id": self._current_track_id,
+            "duration": self._tl.duration,
+            "sr": self._tl.sr,
+            "hop_length": self._tl.hop_length,
+            "fps": self._tl.fps,
+            "stems": self._tl.stems,
+            "stem_state": self._stems.to_dict(),
+            "tracks": self._track_metadata(),
+        }
+
+    def _track_metadata(self) -> list[dict]:
+        if not self._tracks:
+            return []
+        metadata = []
+        for track_id, item in self._tracks.items():
+            timeline = item["timeline"]
+            meta = dict(item.get("meta", {}))
+            meta.update({
+                "id": track_id,
+                "duration": timeline.duration,
+                "fps": timeline.fps,
+                "stems": timeline.stems,
+            })
+            metadata.append(meta)
+        return metadata
+
     def _frame_to_msg(self, frame: FrameFeatures, t: float) -> dict:
         active = self._stems.active_stems()
         stem_names = ["melody", "bass", "drums", "harmonic"]
@@ -257,7 +338,11 @@ class StrataServer:
                 "beat_phase":        round(sf.beat_phase, 4),
             }
 
-        msg: dict = {"type": "frame", "t": round(t, 4)}
+        msg: dict = {
+            "type": "frame",
+            "track_id": self._current_track_id,
+            "t": round(t, 4),
+        }
         for name in stem_names:
             sf = getattr(frame, name)
             if name in active:
@@ -275,7 +360,17 @@ class StrataServer:
 # Convenience runner
 # ---------------------------------------------------------------------------
 
-async def serve(timeline: FeatureTimeline, host: str = config.WS_HOST, port: int = config.WS_PORT):
+async def serve(
+    timeline: FeatureTimeline,
+    host: str = config.WS_HOST,
+    port: int = config.WS_PORT,
+    tracks: Optional[Dict[str, dict[str, Any]]] = None,
+    default_track_id: Optional[str] = None,
+):
     """Start the server.  Blocks until cancelled."""
-    server = StrataServer(timeline)
+    server = StrataServer(
+        timeline,
+        tracks=tracks,
+        default_track_id=default_track_id,
+    )
     await server.run(host, port)

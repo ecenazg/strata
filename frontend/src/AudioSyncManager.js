@@ -1,31 +1,81 @@
 export class AudioSyncManager {
-  constructor(onFrameCallback, audioUrl, onEndedCallback = () => {}, featuresUrl) {
+  constructor(
+    onFrameCallback,
+    audioUrl = null,
+    onEndedCallback = () => {},
+    onReadyCallback = () => {},
+  ) {
     this.onFrameCallback = onFrameCallback;
     this.onEndedCallback = onEndedCallback;
+    this.onReadyCallback = onReadyCallback;
     this.isPlaying = false;
-    this.audio = new Audio(audioUrl);
+    this.audio = new Audio();
     this.audio.preload = "auto";
     this.audio.volume = 0.85;
     this.duration = 0;
-    this.frames = [];
-    this.frameIndex = 0;
-    this.animationFrame = null;
+    this.trackId = null;
+    this.pendingTrackId = null;
 
-    this.audio.addEventListener("ended", () => this.finishPlayback());
-    this.ready = this.loadFeatures(featuresUrl);
-  }
-
-  async loadFeatures(featuresUrl) {
-    const response = await fetch(featuresUrl);
-    if (!response.ok) {
-      throw new Error(`Could not load feature timeline: ${response.status}`);
+    if (audioUrl) {
+      this.audio.src = audioUrl;
     }
 
-    const timeline = await response.json();
-    this.frames = timeline.frames ?? [];
-    this.duration = timeline.duration ?? 0;
-    this.frameIndex = 0;
-    console.log(`Loaded ${this.frames.length} feature frames.`);
+    this.audio.addEventListener("ended", () => this.finishPlayback());
+
+    this.ws = new WebSocket("ws://localhost:8765");
+
+    this.ws.onopen = () => {
+      console.log("WebSocket bağlantısı başarılı!");
+      if (this.pendingTrackId) {
+        this.ws.send(JSON.stringify({ cmd: "track", track_id: this.pendingTrackId }));
+        this.pendingTrackId = null;
+      }
+    };
+
+    this.ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === "ready") {
+        this.duration = msg.duration ?? 0;
+        this.trackId = msg.track_id ?? this.trackId;
+        this.onReadyCallback(msg);
+        console.log("Sunucu hazır. Şarkı bilgileri:", msg);
+      } else if (msg.type === "track_ready") {
+        this.duration = msg.duration ?? 0;
+        this.trackId = msg.track_id ?? this.trackId;
+        this.onReadyCallback(msg);
+        console.log("Track hazır:", msg);
+      } else if (msg.type === "frame") {
+        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
+        this.onFrameCallback(msg);
+      } else if (msg.type === "ended") {
+        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
+        this.finishPlayback();
+      } else if (msg.type === "track_error") {
+        console.error("Track switch failed:", msg.message);
+      }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error("WebSocket Hatası (Python açık mı?):", error);
+    };
+  }
+
+  setTrack(track) {
+    if (!track?.audioUrl) return;
+
+    this.pause();
+    this.trackId = track.id ?? null;
+    this.duration = 0;
+    this.audio.src = track.audioUrl;
+    this.audio.currentTime = 0;
+    this.audio.load();
+
+    if (this.ws.readyState === WebSocket.OPEN && this.trackId) {
+      this.ws.send(JSON.stringify({ cmd: "track", track_id: this.trackId }));
+    } else {
+      this.pendingTrackId = this.trackId;
+    }
   }
 
   finishPlayback() {
@@ -38,12 +88,16 @@ export class AudioSyncManager {
   }
 
   async play() {
-    await this.ready;
     if (this.isPlaying) return;
 
-    await this.audio.play();
-    this.isPlaying = true;
-    this.streamFrames();
+    if (!this.isPlaying) {
+      this.audio.play().catch((error) => {
+        console.error("Audio playback could not start:", error);
+      });
+      this.isPlaying = true;
+    }
+
+    return this.isPlaying;
   }
 
   pause() {

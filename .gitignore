@@ -11,6 +11,7 @@ frontend/public/features.json
 *.mp4
 
 stems/
+features/_stem_cache/
 
 .env
 .venv/

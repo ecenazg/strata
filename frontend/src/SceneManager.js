@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { DEFAULT_VISUAL_PROFILE } from "./visualProfiles.js";
 
 const LOOK_AT = new THREE.Vector3(0, 0.75, -2.2);
 const MIN_CAMERA_DISTANCE = 4.2;
@@ -11,6 +12,7 @@ export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
     this.phase = "opening";
+    this.profile = DEFAULT_VISUAL_PROFILE;
     this.separationReveal = 0;
     this.transitionPulse = 0;
     this.beatPulse = 0;
@@ -31,7 +33,7 @@ export class SceneManager {
     );
     this._updateCameraPosition();
 
-    const bg = 0x080b14;
+    const bg = this.profile.colors.background;
     this.scene.background = new THREE.Color(bg);
     this.scene.fog = new THREE.FogExp2(bg, 0.055);
 
@@ -42,17 +44,18 @@ export class SceneManager {
     this.renderer.domElement.className = "strata-canvas";
     document.body.appendChild(this.renderer.domElement);
 
-    this.scene.add(new THREE.AmbientLight(0x7d91ff, 0.45));
+    this.ambientLight = new THREE.AmbientLight(this.profile.colors.ambient, 0.45);
+    this.scene.add(this.ambientLight);
 
-    this.keyLight = new THREE.DirectionalLight(0xd8f3ff, 1.25);
+    this.keyLight = new THREE.DirectionalLight(this.profile.colors.keyLight, 1.25);
     this.keyLight.position.set(3, 5, 4);
     this.scene.add(this.keyLight);
 
-    this.warmLight = new THREE.PointLight(0xffcc82, 2.4, 16);
+    this.warmLight = new THREE.PointLight(this.profile.colors.warmLight, 2.4, 16);
     this.warmLight.position.set(-2.8, 0.6, 1.2);
     this.scene.add(this.warmLight);
 
-    this.cyanLight = new THREE.PointLight(0x5ee7ff, 2.2, 16);
+    this.cyanLight = new THREE.PointLight(this.profile.colors.coolLight, 2.2, 16);
     this.cyanLight.position.set(2.2, 1.4, -2.5);
     this.scene.add(this.cyanLight);
 
@@ -82,6 +85,39 @@ export class SceneManager {
       this.transitionPulse = 1;
     }
     this.phase = phase;
+  }
+
+  applyVisualProfile(profile) {
+    this.profile = profile;
+
+    this.scene.background.setHex(profile.colors.background);
+    this.scene.fog.color.setHex(profile.colors.background);
+    this.ambientLight.color.setHex(profile.colors.ambient);
+    this.keyLight.color.setHex(profile.colors.keyLight);
+    this.warmLight.color.setHex(profile.colors.warmLight);
+    this.cyanLight.color.setHex(profile.colors.coolLight);
+    this.core.material.color.setHex(profile.colors.core);
+    this.incomingStream.material.color.setHex(profile.colors.incoming);
+    this.incomingStream.userData.head.material.color.setHex(profile.colors.incoming);
+
+    this.energyRings.forEach((ring, index) => {
+      ring.material.color.setHex(profile.colors.stage[index % profile.colors.stage.length]);
+    });
+
+    const streamColors = [
+      profile.colors.stems.bass,
+      profile.colors.stems.drums,
+      profile.colors.stems.melody,
+      profile.colors.stems.harmony,
+    ];
+    this.separationStreams.forEach((line, index) => {
+      line.material.color.setHex(streamColors[index]);
+      line.userData.head.material.color.setHex(streamColors[index]);
+    });
+
+    this._applyStarFieldColors(profile.colors.stars);
+    document.body.style.setProperty("--profile-flash-warm", profile.colors.flashWarm);
+    document.body.style.setProperty("--profile-flash-cool", profile.colors.flashCool);
   }
 
   update(elapsed, frame) {
@@ -117,11 +153,16 @@ export class SceneManager {
     }
     this._updateCameraPosition();
 
+    const motion = this.profile.motion;
     this.warmLight.intensity = 2.0 + bass * 1.8 + this.transitionPulse * 2.5;
     this.cyanLight.intensity =
       1.8 + harmonic * 1.4 + drums * 0.6 + this.transitionPulse * 2.0 + this.beatPulse * 1.8;
-    this.bloomPass.strength = 0.68 + this.beatPulse * 0.62 + this.transitionPulse * 0.2;
-    document.body.style.setProperty("--beat-flash", this.beatPulse.toFixed(3));
+    this.bloomPass.strength =
+      motion.bloomBase + this.beatPulse * motion.bloomBeat + this.transitionPulse * 0.2;
+    document.body.style.setProperty(
+      "--beat-flash",
+      (this.beatPulse * motion.beatFlash).toFixed(3)
+    );
     this._updateSeparationStreams(elapsed, frame);
   }
 
@@ -133,9 +174,9 @@ export class SceneManager {
     const count = 900;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const colorA = new THREE.Color(0x8bdcff);
-    const colorB = new THREE.Color(0xffd28a);
-    const colorC = new THREE.Color(0xc7a7ff);
+    const colorA = new THREE.Color(this.profile.colors.stars[0]);
+    const colorB = new THREE.Color(this.profile.colors.stars[1]);
+    const colorC = new THREE.Color(this.profile.colors.stars[2]);
 
     for (let i = 0; i < count; i++) {
       const radius = 6 + Math.random() * 18;
@@ -169,13 +210,26 @@ export class SceneManager {
     this.backdrop.add(this.starField);
   }
 
+  _applyStarFieldColors(colors) {
+    const colorAttribute = this.starField.geometry.getAttribute("color");
+    const colorA = new THREE.Color(colors[0]);
+    const colorB = new THREE.Color(colors[1]);
+    const colorC = new THREE.Color(colors[2]);
+
+    for (let i = 0; i < colorAttribute.count; i++) {
+      const color = i % 5 === 0 ? colorB : i % 3 === 0 ? colorC : colorA;
+      colorAttribute.setXYZ(i, color.r, color.g, color.b);
+    }
+    colorAttribute.needsUpdate = true;
+  }
+
   _createEnergyStage() {
     this.energyRings = [];
 
     for (let i = 0; i < 4; i++) {
       const geometry = new THREE.TorusGeometry(1.8 + i * 0.62, 0.01, 8, 180);
       const material = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0x5ee7ff : 0xffc874,
+        color: this.profile.colors.stage[i % this.profile.colors.stage.length],
         transparent: true,
         opacity: 0.12,
         blending: THREE.AdditiveBlending,
@@ -190,7 +244,7 @@ export class SceneManager {
 
     const coreGeometry = new THREE.IcosahedronGeometry(0.42, 2);
     const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffd68a,
+      color: this.profile.colors.core,
       transparent: true,
       opacity: 0.9,
       wireframe: true,
@@ -212,7 +266,7 @@ export class SceneManager {
         new THREE.Vector3(-2.1, 1.08, -1.55),
         origin,
       ],
-      0xffd68a,
+      this.profile.colors.incoming,
       0.5
     );
 
@@ -223,7 +277,7 @@ export class SceneManager {
           new THREE.Vector3(0.9, 0.1, -1.4),
           new THREE.Vector3(2.9, -1.25, -1.25),
         ],
-        0x0b7cff,
+        this.profile.colors.stems.bass,
         0.56
       ),
       this._createStream(
@@ -232,7 +286,7 @@ export class SceneManager {
           new THREE.Vector3(1.3, 1.25, -2.2),
           new THREE.Vector3(2.35, 1.1, -2.65),
         ],
-        0xffcf7a,
+        this.profile.colors.stems.drums,
         0.62
       ),
       this._createStream(
@@ -241,7 +295,7 @@ export class SceneManager {
           new THREE.Vector3(-1.1, 1.15, -1.75),
           new THREE.Vector3(-2.9, 0.52, -1.7),
         ],
-        0x6dff8f,
+        this.profile.colors.stems.melody,
         0.58
       ),
       this._createStream(
@@ -250,7 +304,7 @@ export class SceneManager {
           new THREE.Vector3(-0.35, 2.2, -2.7),
           new THREE.Vector3(0.15, 2.75, -3.65),
         ],
-        0xba7cff,
+        this.profile.colors.stems.harmony,
         0.5
       ),
     ];
@@ -377,7 +431,10 @@ export class SceneManager {
 
   _updateCameraPosition() {
     const { azimuth, elevation, distance } = this.cameraControls;
-    const punchedDistance = distance - this.beatPulse * 0.42 - this.transitionPulse * 0.18;
+    const punchedDistance =
+      distance -
+      this.beatPulse * 0.42 * this.profile.motion.cameraPunch -
+      this.transitionPulse * 0.18;
     const horizontalDistance = Math.cos(elevation) * punchedDistance;
 
     this.camera.position.set(
