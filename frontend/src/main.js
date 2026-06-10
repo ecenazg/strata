@@ -213,7 +213,7 @@ overlay.progressTrack.addEventListener("pointerup", (event) => {
 });
 
 window.addEventListener("click", (e) => {
-  if (e.target.closest(".lil-gui, .progress-track, .track-picker")) return;
+  if (e.target.closest(".lil-gui, .progress-track, .track-picker, .info-panel, .info-toggle, .info-close")) return;
 
   const isPlaying = audioManager.togglePlayback();
 
@@ -228,8 +228,16 @@ window.addEventListener("click", (e) => {
   }
 });
 
+overlay.infoToggle.addEventListener("click", toggleInfoPanel);
+overlay.infoClose.addEventListener("click", () => { overlay.infoPanel.hidden = true; });
+
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
+
+  if (key === "i") {
+    toggleInfoPanel();
+    return;
+  }
 
   if (key === "g") {
     const hidden = gui.domElement.style.display === "none";
@@ -299,6 +307,84 @@ function createCinematicOverlay() {
       <p class="eyebrow">AI source separation</p>
       <h2>Real-time 3D music visualisation</h2>
     </section>
+
+    <!-- Genre transition banner — appears briefly on track switch -->
+    <div class="profile-banner" data-profile-banner>
+      <p class="profile-banner-name" data-profile-banner-name></p>
+      <p class="profile-banner-desc" data-profile-banner-desc></p>
+    </div>
+
+    <!-- Info toggle button -->
+    <button class="info-toggle" data-info-toggle aria-label="Toggle system info">INFO</button>
+
+    <!-- Info panel -->
+    <div class="info-panel" data-info-panel hidden>
+      <button class="info-close" data-info-close aria-label="Close info">✕</button>
+      <div class="info-scroll">
+        <div class="info-header">
+          <span class="info-eyebrow">Prototype · Intermediate Status</span>
+          <h2 class="info-heading">STRATA</h2>
+          <p class="info-sub">AI-driven source separation translated into a cinematic real-time 3D music visualisation</p>
+        </div>
+
+        <div class="info-pipeline">
+          <div class="pipeline-step step-active"><span class="pip-label">MP3</span><span class="pip-desc">audio input</span></div>
+          <span class="pip-arrow">→</span>
+          <div class="pipeline-step step-active"><span class="pip-label">HPSS</span><span class="pip-desc">librosa · ~60 s/track · CPU</span></div>
+          <span class="pip-arrow">→</span>
+          <div class="pipeline-step step-planned"><span class="pip-label">Demucs</span><span class="pip-desc">htdemucs · GPU · planned</span></div>
+          <span class="pip-arrow">→</span>
+          <div class="pipeline-step step-active"><span class="pip-label">Features</span><span class="pip-desc">RMS · onset · chroma · beat</span></div>
+          <span class="pip-arrow">→</span>
+          <div class="pipeline-step step-active"><span class="pip-label">Three.js</span><span class="pip-desc">4 live 3D visualisers · 60 fps</span></div>
+        </div>
+
+        <div class="info-cols">
+          <div class="info-section">
+            <h3 class="info-section-title">Currently Working</h3>
+            <ul class="info-list">
+              <li class="info-item info-done">6 tracks spanning 3 genres — hip-hop, psychedelic rock, cinematic/electronic</li>
+              <li class="info-item info-done">HPSS source separation: harmonic + percussive split, ~60 fps feature frames</li>
+              <li class="info-item info-done">Per-stem features: RMS energy, onset strength, spectral centroid, chroma[12], beat phase</li>
+              <li class="info-item info-done">4 independent 3D visualisers each driven by a dedicated stem</li>
+              <li class="info-item info-done">5 genre visual profiles — colour palette, motion multipliers, minimum-mix floor</li>
+              <li class="info-item info-done">8-phase system — progressive layer introduction across track duration</li>
+              <li class="info-item info-done">Beat-flash overlay + chroma-reactive CSS variables across the full UI</li>
+              <li class="info-item info-done">Track info + artist overlay fades in during playback</li>
+              <li class="info-item info-done">Progress bar scrubbing + ← → keyboard seek</li>
+              <li class="info-item info-done">Video export — WebM 60 fps via MediaRecorder API</li>
+              <li class="info-item info-done">Static deployment on GitHub Pages — no server or WebSocket required</li>
+            </ul>
+          </div>
+          <div class="info-section">
+            <h3 class="info-section-title">Visual Layer Mapping</h3>
+            <div class="layer-grid">
+              <div class="layer-row layer-bass"><span class="layer-dot"></span><strong>Bass</strong><span>BassShockwave rings — RMS-driven radius &amp; opacity</span></div>
+              <div class="layer-row layer-drums"><span class="layer-dot"></span><strong>Drums</strong><span>DrumParticles — burst on onset transients, beat-phase scale</span></div>
+              <div class="layer-row layer-melody"><span class="layer-dot"></span><strong>Melody</strong><span>MelodyRibbon polyline — pitch &amp; chroma deformation</span></div>
+              <div class="layer-row layer-harmonic"><span class="layer-dot"></span><strong>Harmony</strong><span>HarmonicCloud icosphere — chroma energy rotation</span></div>
+            </div>
+
+            <h3 class="info-section-title" style="margin-top:22px">Planned Extensions</h3>
+            <ul class="info-list">
+              <li class="info-item info-plan">Full Demucs htdemucs — true vocals / bass / drums / other stems via GPU server</li>
+              <li class="info-item info-plan">Beat-synchronised camera choreography — orbital path + FOV punch</li>
+              <li class="info-item info-plan">Mid-track chroma key shifts — scene colour follows harmonic progression</li>
+              <li class="info-item info-plan">Vocal layer extraction + phoneme-level ribbon deformation</li>
+              <li class="info-item info-plan">Live audio input mode — microphone / line-in with real-time HPSS</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="info-shortcuts">
+          <span>I — toggle info</span>
+          <span>Space / click — play / pause</span>
+          <span>← → — seek ±10 s</span>
+          <span>R — record video</span>
+          <span>G — debug GUI</span>
+        </div>
+      </div>
+    </div>
   `;
   document.body.appendChild(root);
   return {
@@ -315,6 +401,12 @@ function createCinematicOverlay() {
     trackInfo: root.querySelector("[data-track-info]"),
     trackName: root.querySelector("[data-track-name]"),
     trackArtist: root.querySelector("[data-track-artist]"),
+    infoPanel: root.querySelector("[data-info-panel]"),
+    infoToggle: root.querySelector("[data-info-toggle]"),
+    infoClose: root.querySelector("[data-info-close]"),
+    profileBanner: root.querySelector("[data-profile-banner]"),
+    profileBannerName: root.querySelector("[data-profile-banner-name]"),
+    profileBannerDesc: root.querySelector("[data-profile-banner-desc]"),
   };
 }
 
@@ -373,6 +465,7 @@ async function selectTrackById(trackId) {
   if (!track) return;
   selectedTrack = track;
   applyTrackVisualProfile(track);
+  showProfileBanner(activeVisualProfile);
   resetPlaybackVisualState("loading...", "opening sequence");
   try {
     await audioManager.setTrack({
@@ -481,6 +574,31 @@ function formatTime(timeSeconds) {
     .toString()
     .padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+function toggleInfoPanel() {
+  overlay.infoPanel.hidden = !overlay.infoPanel.hidden;
+}
+
+const PROFILE_DESCRIPTIONS = {
+  "hip-hop":    "Punchy drums · amber & gold · soulful warmth",
+  "cinematic":  "Orchestral sweep · cool blue · slow glide",
+  "party":      "High-energy flash · neon cyan · beat-locked",
+  "melodic":    "Harmonic depth · warm green · flowing ribbon",
+  "bass-heavy": "Sub-bass rings · deep cyan · shockwave pulse",
+};
+
+function showProfileBanner(profile) {
+  const banner = overlay.profileBanner;
+  overlay.profileBannerName.textContent = (profile.label ?? profile.id).toUpperCase();
+  overlay.profileBannerDesc.textContent = PROFILE_DESCRIPTIONS[profile.id] ?? "";
+
+  banner.classList.remove("banner-visible");
+  void banner.offsetWidth; // force reflow to restart animation
+  banner.classList.add("banner-visible");
+
+  clearTimeout(banner._hideTimer);
+  banner._hideTimer = setTimeout(() => banner.classList.remove("banner-visible"), 2600);
 }
 
 function applyPhaseMix(phase) {
