@@ -1,103 +1,68 @@
+/**
+ * AudioSyncManager — drives audio playback and streams per-frame feature
+ * data to the visualizer from a pre-baked features JSON file.
+ *
+ * No WebSocket required — all feature data is loaded as a static asset,
+ * so the visualizer works on GitHub Pages or any static host.
+ *
+ * Typical usage:
+ *   const mgr = new AudioSyncManager(onFrame, onEnded);
+ *   await mgr.setTrack({ audioUrl: "/audio/foo.mp3", featuresFile: "features/foo.json" });
+ *   mgr.play();
+ */
 export class AudioSyncManager {
-  constructor(
-    onFrameCallback,
-    audioUrl = null,
-    onEndedCallback = () => {},
-    onReadyCallback = () => {},
-  ) {
+  constructor(onFrameCallback, onEndedCallback = () => {}) {
     this.onFrameCallback = onFrameCallback;
     this.onEndedCallback = onEndedCallback;
-    this.onReadyCallback = onReadyCallback;
-    this.isPlaying = false;
+
+    this.isPlaying   = false;
+    this.frames      = [];
+    this.frameIndex  = 0;
+    this.duration    = 0;
+    this.animationFrame = null;
+
     this.audio = new Audio();
     this.audio.preload = "auto";
-    this.audio.volume = 0.85;
-    this.duration = 0;
-    this.trackId = null;
-    this.pendingTrackId = null;
-
-    if (audioUrl) {
-      this.audio.src = audioUrl;
-    }
-
+    this.audio.volume  = 0.85;
     this.audio.addEventListener("ended", () => this.finishPlayback());
-
-    this.ws = new WebSocket("ws://localhost:8765");
-
-    this.ws.onopen = () => {
-      console.log("WebSocket bağlantısı başarılı!");
-      if (this.pendingTrackId) {
-        this.ws.send(JSON.stringify({ cmd: "track", track_id: this.pendingTrackId }));
-        this.pendingTrackId = null;
-      }
-    };
-
-    this.ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-
-      if (msg.type === "ready") {
-        this.duration = msg.duration ?? 0;
-        this.trackId = msg.track_id ?? this.trackId;
-        this.onReadyCallback(msg);
-        console.log("Sunucu hazır. Şarkı bilgileri:", msg);
-      } else if (msg.type === "track_ready") {
-        this.duration = msg.duration ?? 0;
-        this.trackId = msg.track_id ?? this.trackId;
-        this.onReadyCallback(msg);
-        console.log("Track hazır:", msg);
-      } else if (msg.type === "frame") {
-        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
-        this.onFrameCallback(msg);
-      } else if (msg.type === "ended") {
-        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
-        this.finishPlayback();
-      } else if (msg.type === "track_error") {
-        console.error("Track switch failed:", msg.message);
-      }
-    };
-
-    this.ws.onerror = (error) => {
-      console.error("WebSocket Hatası (Python açık mı?):", error);
-    };
   }
 
-  setTrack(track) {
-    if (!track?.audioUrl) return;
-
+  /**
+   * Load a new track.  Fetches its features JSON and queues the audio.
+   * Resolves with the raw FeatureTimeline data object.
+   */
+  async setTrack(track) {
     this.pause();
-    this.trackId = track.id ?? null;
-    this.duration = 0;
-    this.audio.src = track.audioUrl;
-    this.audio.currentTime = 0;
+    this.frameIndex = 0;
+    this.frames     = [];
+    this.duration   = 0;
+
+    // ── audio ──────────────────────────────────────────────────────────────
+    this.audio.src          = track.audioUrl;
+    this.audio.currentTime  = 0;
     this.audio.load();
 
-    if (this.ws.readyState === WebSocket.OPEN && this.trackId) {
-      this.ws.send(JSON.stringify({ cmd: "track", track_id: this.trackId }));
-    } else {
-      this.pendingTrackId = this.trackId;
+    // ── features ───────────────────────────────────────────────────────────
+    const resp = await fetch(track.featuresFile);
+    if (!resp.ok) {
+      throw new Error(
+        `[AudioSyncManager] Could not load features: ${track.featuresFile} (${resp.status})`
+      );
     }
+    const data    = await resp.json();
+    this.frames   = data.frames;
+    this.duration = data.duration;
+    return data;
   }
 
-  finishPlayback() {
-    this.audio.pause();
-    this.audio.currentTime = 0;
-    this.isPlaying = false;
-    this.frameIndex = 0;
-    cancelAnimationFrame(this.animationFrame);
-    this.onEndedCallback();
-  }
+  // ── Playback controls ───────────────────────────────────────────────────────
 
   async play() {
-    if (this.isPlaying) return;
-
-    if (!this.isPlaying) {
-      this.audio.play().catch((error) => {
-        console.error("Audio playback could not start:", error);
-      });
-      this.isPlaying = true;
-    }
-
-    return this.isPlaying;
+    if (this.isPlaying) return true;
+    await this.audio.play();
+    this.isPlaying = true;
+    this.streamFrames();
+    return true;
   }
 
   pause() {
@@ -108,29 +73,33 @@ export class AudioSyncManager {
 
   seek(timeSeconds = 0) {
     const duration = this.duration || this.audio.duration || 0;
-    const target = Math.max(0, Math.min(Number(timeSeconds) || 0, duration));
-
+    const target   = Math.max(0, Math.min(Number(timeSeconds) || 0, duration));
     this.audio.currentTime = target;
-    this.frameIndex = this.findFrameIndex(target);
+    this.frameIndex        = this.findFrameIndex(target);
     if (this.frames[this.frameIndex]) {
       this.onFrameCallback({ type: "frame", ...this.frames[this.frameIndex] });
     }
-
     return target;
   }
 
   togglePlayback() {
-    if (this.isPlaying) {
-      this.pause();
-    } else {
-      this.play().catch((error) => {
-        console.error("Audio playback could not start:", error);
-      });
-    }
-
-    return !this.isPlaying;
+    if (this.isPlaying) { this.pause(); return false; }
+    this.play().catch(console.error);
+    return true;
   }
 
+  finishPlayback() {
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this.isPlaying  = false;
+    this.frameIndex = 0;
+    cancelAnimationFrame(this.animationFrame);
+    this.onEndedCallback();
+  }
+
+  // ── Internal ────────────────────────────────────────────────────────────────
+
+  /** rAF loop: advances frameIndex to keep pace with audio.currentTime */
   streamFrames() {
     if (!this.isPlaying) return;
 
@@ -143,26 +112,20 @@ export class AudioSyncManager {
     }
 
     const frame = this.frames[this.frameIndex];
-    if (frame) {
-      this.onFrameCallback({ type: "frame", ...frame });
-    }
+    if (frame) this.onFrameCallback({ type: "frame", ...frame });
 
     this.animationFrame = requestAnimationFrame(() => this.streamFrames());
   }
 
+  /** Binary search for the frame index closest to timeSeconds */
   findFrameIndex(timeSeconds) {
-    let low = 0;
-    let high = Math.max(0, this.frames.length - 1);
-
+    if (!this.frames.length) return 0;
+    let low = 0, high = this.frames.length - 1;
     while (low < high) {
-      const middle = Math.floor((low + high + 1) / 2);
-      if (this.frames[middle].t <= timeSeconds) {
-        low = middle;
-      } else {
-        high = middle - 1;
-      }
+      const mid = Math.floor((low + high + 1) / 2);
+      if (this.frames[mid].t <= timeSeconds) low = mid;
+      else high = mid - 1;
     }
-
     return low;
   }
 }
