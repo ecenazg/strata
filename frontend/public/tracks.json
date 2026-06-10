@@ -35,6 +35,28 @@
       "note": "Instrumental playback without vocals; melodic and harmonic profile"
     },
     {
+      "id": "hip-hop-heartless",
+      "title": "Heartless",
+      "artist": "Kanye West",
+      "audioUrl": "/audio/kanye_heartless.mp3",
+      "sourceAudioUrl": "/audio/kanye_heartless.mp3",
+      "featuresFile": "features/hip-hop-heartless.json",
+      "visualProfile": "hip-hop",
+      "prepared": true,
+      "note": "Run: python prepare_tracks.py --tracks hip-hop-heartless"
+    },
+    {
+      "id": "psychedelic-dracula",
+      "title": "Dracula",
+      "artist": "Tame Impala",
+      "audioUrl": "/audio/tame_impala_dracula.mp3",
+      "sourceAudioUrl": "/audio/tame_impala_dracula.mp3",
+      "featuresFile": "features/psychedelic-dracula.json",
+      "visualProfile": "melodic",
+      "prepared": true,
+      "note": "Run: python prepare_tracks.py --tracks psychedelic-dracula"
+    },
+    {
       "id": "cinematic-outro",
       "title": "Outro",
       "artist": "M83",
