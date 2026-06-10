@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DEFAULT_VISUAL_PROFILE } from "../visualProfiles.js";
 
 export class DrumParticles {
   constructor(scene) {
@@ -9,6 +10,7 @@ export class DrumParticles {
     this.cooldown = 0;
     this.previousHit = 0;
     this.mix = 1;
+    this.motion = DEFAULT_VISUAL_PROFILE.motion;
 
     const geometry = new THREE.BufferGeometry();
     this.positions = new Float32Array(this.particleCount * 3);
@@ -50,6 +52,11 @@ export class DrumParticles {
     this.scene.add(this.points);
   }
 
+  applyVisualProfile(profile) {
+    this.motion = profile.motion;
+    this.material.color.setHex(profile.colors.drums.particles);
+  }
+
   update(drumData) {
     const hit = Math.max(drumData.onset, drumData.rms * 0.85);
 
@@ -87,7 +94,8 @@ export class DrumParticles {
       0.92,
       0.08 + hit * 0.28 + envelope * (0.52 + this.burstStrength * 0.35)
     ) * this.mix;
-    this.material.size = 0.044 + hit * 0.036 + envelope * 0.045;
+    this.material.size =
+      (0.044 + hit * 0.036 + envelope * 0.045) * this.motion.drumSize;
 
     this.points.rotation.y += 0.007 + this.burstStrength * envelope * 0.02;
     this.points.rotation.x += 0.0025;

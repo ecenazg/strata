@@ -229,7 +229,14 @@ class StrataServer:
         """Continuously pull frames from the Player and broadcast to all clients."""
         while True:
             player = self._player
-            frame, t = await player.__anext__()
+            try:
+                frame, t = await asyncio.wait_for(
+                    player.__anext__(),
+                    timeout=max(config.WS_FRAME_INTERVAL * 4, 0.05),
+                )
+            except asyncio.TimeoutError:
+                continue
+
             if player is not self._player:
                 continue
             if not self._clients:

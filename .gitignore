@@ -10,6 +10,7 @@ frontend/dist/
 *.mp4
 
 stems/
+features/_stem_cache/
 
 .env
 .venv/

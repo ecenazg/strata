@@ -4,11 +4,13 @@ import { BassShockwave } from "./visualizers/BassShockwave.js";
 import { MelodyRibbon } from "./visualizers/MelodyRibbon.js";
 import { DrumParticles } from "./visualizers/DrumParticles.js";
 import { HarmonicCloud } from "./visualizers/HarmonicCloud.js";
+import { orderedStemColors, resolveVisualProfile } from "./visualProfiles.js";
 import GUI from "lil-gui";
 import "./style.css";
 
 const sceneManager = new SceneManager();
 const overlay = createCinematicOverlay();
+let activeVisualProfile = resolveVisualProfile(null);
 
 const bassVisualizer = new BassShockwave(sceneManager.scene);
 bassVisualizer.mesh.position.set(0, -1.45, -1.3);
@@ -22,6 +24,7 @@ drumVisualizer.points.position.set(0, 0.95, -2.15);
 const harmonicVisualizer = new HarmonicCloud(sceneManager.scene);
 harmonicVisualizer.group.position.set(0, 1.35, -3.25);
 harmonicVisualizer.group.scale.setScalar(0.62);
+applyVisualProfile(activeVisualProfile);
 
 const gui = new GUI({ title: "Strata Kontrol Merkezi" });
 gui.domElement.classList.add("debug-panel");
@@ -152,6 +155,7 @@ const onBackendReady = (message) => {
     if (track) {
       selectedTrack = track;
       overlay.trackSelect.value = track.id;
+      applyTrackVisualProfile(track);
       updateTrackStatus(`ready · ${formatTime(message.duration ?? 0)}`);
     }
   }
@@ -174,7 +178,7 @@ function resetPlaybackVisualState(stateText = "track ready", phaseText = "openin
 
 const audioManager = new AudioSyncManager(
   onFrameReceived,
-  "/audio/test_music.mp3",
+  null,
   onPlaybackEnded,
   onBackendReady,
 );
@@ -227,6 +231,7 @@ window.addEventListener("click", (e) => {
     overlay.state.textContent = "playback started";
   } else {
     console.log("Tıklandı, müzik duraklatılıyor...");
+    document.body.classList.remove("is-playing");
     overlay.state.textContent = "playback paused";
   }
 });
@@ -281,6 +286,7 @@ function createCinematicOverlay() {
     <div class="track-picker" data-track-picker>
       <label for="track-select">Track</label>
       <select id="track-select" data-track-select aria-label="Demo track"></select>
+      <span class="visual-profile" data-profile>cinematic</span>
       <span data-track-status>loading tracks</span>
     </div>
     <div
@@ -309,6 +315,7 @@ function createCinematicOverlay() {
     trackPicker: root.querySelector("[data-track-picker]"),
     trackSelect: root.querySelector("[data-track-select]"),
     trackStatus: root.querySelector("[data-track-status]"),
+    profile: root.querySelector("[data-profile]"),
   };
 }
 
@@ -329,6 +336,7 @@ async function loadTrackManifest() {
       availableTracks[0];
     audioManager.trackId = selectedTrack.id;
     audioManager.audio.src = selectedTrack.audioUrl;
+    applyTrackVisualProfile(selectedTrack);
     populateTrackSelector();
     updateTrackStatus(`prepared ${availableTracks.length} track`);
   } catch (error) {
@@ -358,12 +366,32 @@ function selectTrackById(trackId) {
 
   selectedTrack = track;
   audioManager.setTrack(track);
+  applyTrackVisualProfile(track);
   resetPlaybackVisualState("track selected", "opening sequence");
   updateTrackStatus("selected · click to play");
 }
 
 function updateTrackStatus(text) {
   overlay.trackStatus.textContent = text;
+}
+
+function applyTrackVisualProfile(track) {
+  activeVisualProfile = resolveVisualProfile(track);
+  applyVisualProfile(activeVisualProfile);
+  overlay.profile.textContent = activeVisualProfile.label;
+}
+
+function applyVisualProfile(profile) {
+  sceneManager.applyVisualProfile(profile);
+  bassVisualizer.applyVisualProfile(profile);
+  drumVisualizer.applyVisualProfile(profile);
+  melodyVisualizer.applyVisualProfile(profile);
+  harmonicVisualizer.applyVisualProfile(profile);
+
+  const stemColors = orderedStemColors(profile);
+  for (const [stem, color] of Object.entries(stemColors)) {
+    document.body.style.setProperty(`--stem-${stem}`, color);
+  }
 }
 
 function getDemoPhase(t = 0, duration = 0) {
@@ -438,7 +466,14 @@ function applyPhaseMix(phase) {
     harmony: { bass: 0.2, drums: 0.12, melody: 0.28, harmonic: 1 },
     combined: { bass: 1, drums: 0.82, melody: 0.92, harmonic: 0.9 },
   };
-  const mix = mixes[phase] ?? mixes.combined;
+  const baseMix = mixes[phase] ?? mixes.combined;
+  const minimumMix = activeVisualProfile.minimumMix ?? {};
+  const mix = {
+    bass: Math.max(baseMix.bass, minimumMix.bass ?? 0),
+    drums: Math.max(baseMix.drums, minimumMix.drums ?? 0),
+    melody: Math.max(baseMix.melody, minimumMix.melody ?? 0),
+    harmonic: Math.max(baseMix.harmonic, minimumMix.harmonic ?? 0),
+  };
 
   bassVisualizer.setMix(mix.bass);
   drumVisualizer.setMix(mix.drums);

@@ -25,6 +25,12 @@ body {
 body {
   background: #080b14;
   --beat-flash: 0;
+  --profile-flash-warm: 255, 207, 122;
+  --profile-flash-cool: 76, 201, 255;
+  --stem-bass: #4cc9ff;
+  --stem-drums: #ffcf7a;
+  --stem-melody: #6dff8f;
+  --stem-harmony: #ba7cff;
 }
 
 .strata-canvas {
@@ -49,8 +55,8 @@ body {
   inset: 0;
   opacity: calc(var(--beat-flash) * 0.42);
   background:
-    radial-gradient(circle at 50% 48%, rgba(255, 207, 122, 0.34), transparent 18%),
-    radial-gradient(circle at 50% 50%, rgba(76, 201, 255, 0.24), transparent 46%);
+    radial-gradient(circle at 50% 48%, rgba(var(--profile-flash-warm), 0.34), transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(var(--profile-flash-cool), 0.24), transparent 46%);
   mix-blend-mode: screen;
 }
 
@@ -193,6 +199,12 @@ body {
   text-transform: uppercase;
 }
 
+.track-picker .visual-profile {
+  grid-column: 1 / -1;
+  color: rgba(247, 251, 255, 0.86);
+  text-align: right;
+}
+
 .legend-item {
   display: inline-flex;
   gap: 7px;
@@ -208,19 +220,19 @@ body {
 }
 
 .legend-item.bass {
-  color: #4cc9ff;
+  color: var(--stem-bass);
 }
 
 .legend-item.drums {
-  color: #ffcf7a;
+  color: var(--stem-drums);
 }
 
 .legend-item.melody {
-  color: #6dff8f;
+  color: var(--stem-melody);
 }
 
 .legend-item.harmony {
-  color: #ba7cff;
+  color: var(--stem-harmony);
 }
 
 .is-recording .audio-state {

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DEFAULT_VISUAL_PROFILE } from "../visualProfiles.js";
 
 export class HarmonicCloud {
   constructor(scene) {
@@ -10,6 +11,7 @@ export class HarmonicCloud {
     this.cloudColors = new Float32Array(this.cloudCount * 3);
     this.energy = 0;
     this.mix = 1;
+    this.profile = DEFAULT_VISUAL_PROFILE;
 
     const geometries = [
       new THREE.TorusGeometry(1.65, 0.01, 8, 180),
@@ -38,6 +40,15 @@ export class HarmonicCloud {
     this.scene.add(this.group);
   }
 
+  applyVisualProfile(profile) {
+    this.profile = profile;
+    this.meshes.forEach((mesh, index) => {
+      const color = profile.colors.harmony.rings[index] ?? profile.colors.stems.harmony;
+      mesh.material.color.setHex(color);
+    });
+    this._applyCloudColors(profile.colors.harmony.cloud);
+  }
+
   update(harmonicData) {
     this.energy += (harmonicData.rms - this.energy) * 0.09;
     const brightness = Math.min(1, harmonicData.spectral_centroid / 6500);
@@ -60,7 +71,10 @@ export class HarmonicCloud {
       mesh.material.opacity =
         Math.min(
         0.5,
-        0.08 + this.energy * 0.26 + brightness * 0.08 - index * 0.015
+        0.08 +
+          this.energy * 0.26 * this.profile.motion.harmonyMist +
+          brightness * 0.08 -
+          index * 0.015
       ) * this.mix;
     });
 
@@ -68,10 +82,6 @@ export class HarmonicCloud {
   }
 
   _createAuroraCloud() {
-    const colorA = new THREE.Color(0x7c4dff);
-    const colorB = new THREE.Color(0xba7cff);
-    const colorC = new THREE.Color(0xff9cff);
-
     for (let i = 0; i < this.cloudCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const radius = 0.65 + Math.random() * 2.35;
@@ -86,10 +96,7 @@ export class HarmonicCloud {
       this.cloudPositions[i * 3 + 1] = this.basePositions[i * 3 + 1];
       this.cloudPositions[i * 3 + 2] = this.basePositions[i * 3 + 2];
 
-      const color = i % 7 === 0 ? colorC : i % 2 === 0 ? colorA : colorB;
-      this.cloudColors[i * 3] = color.r;
-      this.cloudColors[i * 3 + 1] = color.g;
-      this.cloudColors[i * 3 + 2] = color.b;
+      this._setCloudColorAt(i, this.profile.colors.harmony.cloud);
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -110,6 +117,21 @@ export class HarmonicCloud {
     this.group.add(this.cloud);
   }
 
+  _applyCloudColors(colors) {
+    for (let i = 0; i < this.cloudCount; i++) {
+      this._setCloudColorAt(i, colors);
+    }
+    this.cloud.geometry.getAttribute("color").needsUpdate = true;
+  }
+
+  _setCloudColorAt(index, colors) {
+    const colorIndex = index % 7 === 0 ? 2 : index % 2 === 0 ? 0 : 1;
+    const color = new THREE.Color(colors[colorIndex] ?? colors[0]);
+    this.cloudColors[index * 3] = color.r;
+    this.cloudColors[index * 3 + 1] = color.g;
+    this.cloudColors[index * 3 + 2] = color.b;
+  }
+
   _updateAuroraCloud(brightness) {
     const time = Date.now() * 0.00055;
 
@@ -127,8 +149,12 @@ export class HarmonicCloud {
     this.cloudPositionAttribute.needsUpdate = true;
     this.cloud.rotation.y += 0.0016;
     this.cloudMaterial.opacity =
-      Math.min(0.56, 0.12 + this.energy * 0.42 + brightness * 0.1) * this.mix;
-    this.cloudMaterial.size = 0.028 + this.energy * 0.04 + brightness * 0.018;
+      Math.min(
+        0.56,
+        0.12 + this.energy * 0.42 * this.profile.motion.harmonyMist + brightness * 0.1
+      ) * this.mix;
+    this.cloudMaterial.size =
+      0.028 + this.energy * 0.04 * this.profile.motion.harmonyMist + brightness * 0.018;
   }
 
   setMix(mix) {

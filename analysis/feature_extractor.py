@@ -118,9 +118,12 @@ def extract(audio_path, stem_paths):
     
     log.info("Özellikler çıkarılıyor ve birleştiriliyor...")
     
+    feature_cache_key = Path(next(iter(stem_paths.values()))).parent.name
+    feature_cache_dir = config.PROJECT_ROOT / "features" / "_stem_cache" / feature_cache_key
+
     raw_data = extract_all(
         stem_paths, 
-        features_dir=config.PROJECT_ROOT,
+        features_dir=feature_cache_dir,
         sample_rate=config.TARGET_SR, 
         hop_length=config.HOP_LENGTH
     )

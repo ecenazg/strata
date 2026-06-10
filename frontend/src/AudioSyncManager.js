@@ -1,7 +1,7 @@
 export class AudioSyncManager {
   constructor(
     onFrameCallback,
-    audioUrl = "/audio/test_music.mp3",
+    audioUrl = null,
     onEndedCallback = () => {},
     onReadyCallback = () => {},
   ) {
@@ -9,16 +9,19 @@ export class AudioSyncManager {
     this.onEndedCallback = onEndedCallback;
     this.onReadyCallback = onReadyCallback;
     this.isPlaying = false;
-    this.audio = new Audio(audioUrl);
+    this.audio = new Audio();
     this.audio.preload = "auto";
     this.audio.volume = 0.85;
     this.duration = 0;
     this.trackId = null;
     this.pendingTrackId = null;
 
+    if (audioUrl) {
+      this.audio.src = audioUrl;
+    }
+
     this.audio.addEventListener("ended", () => this.finishPlayback());
 
-    // Python sunucusuna bağlan (ws_server.py)
     this.ws = new WebSocket("ws://localhost:8765");
 
     this.ws.onopen = () => {
@@ -44,9 +47,9 @@ export class AudioSyncManager {
         console.log("Track hazır:", msg);
       } else if (msg.type === "frame") {
         if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
-        // Python'dan gelen her frame verisini ana programa yolla
         this.onFrameCallback(msg);
       } else if (msg.type === "ended") {
+        if (msg.track_id && this.trackId && msg.track_id !== this.trackId) return;
         this.finishPlayback();
       } else if (msg.type === "track_error") {
         console.error("Track switch failed:", msg.message);
@@ -65,6 +68,7 @@ export class AudioSyncManager {
     this.trackId = track.id ?? null;
     this.duration = 0;
     this.audio.src = track.audioUrl;
+    this.audio.currentTime = 0;
     this.audio.load();
 
     if (this.ws.readyState === WebSocket.OPEN && this.trackId) {
@@ -92,6 +96,8 @@ export class AudioSyncManager {
       });
       this.isPlaying = true;
     }
+
+    return this.isPlaying;
   }
 
   pause() {

@@ -64,6 +64,7 @@ log = logging.getLogger("strata.pipeline")
 @click.option("--skip-extraction",  is_flag=True,   help="Use cached features.json, skip librosa analysis")
 @click.option("--eval-only",        is_flag=True,   help="Run evaluation metrics only, no server")
 @click.option("--with-eval",        is_flag=True,   help="Run evaluation metrics before starting server")
+@click.option("--prepare-only",     is_flag=True,   help="Prepare stems/features and exit without starting the server")
 @click.option("--export-mp4",       default=None,   type=click.Path(),            help="Export .mp4 instead of live server")
 @click.option("--features-file",    default=None,   type=click.Path(),            help="Override path for features.json")
 @click.option("--track-manifest",   default=None,   type=click.Path(exists=True), help="Load prepared tracks from a JSON manifest")
@@ -76,6 +77,7 @@ def main(
     skip_extraction: bool,
     eval_only: bool,
     with_eval: bool,
+    prepare_only: bool,
     export_mp4: str | None,
     features_file: str | None,
     track_manifest: str | None,
@@ -129,6 +131,7 @@ def main(
             stem_paths = separate(audio_path, force=force_separation)
         log.info("Running feature extraction ...")
         timeline = extract(audio_path, stem_paths)
+        features_path.parent.mkdir(parents=True, exist_ok=True)
         timeline.save(features_path)
 
     # ------------------------------------------------------------------ #
@@ -142,6 +145,10 @@ def main(
         if eval_only:
             log.info("--eval-only: done.")
             return
+
+    if prepare_only:
+        log.info("--prepare-only: features ready at %s", features_path)
+        return
 
     # ------------------------------------------------------------------ #
     # Stage 4: Server or export

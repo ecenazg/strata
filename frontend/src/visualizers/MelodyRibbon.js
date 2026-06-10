@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DEFAULT_VISUAL_PROFILE } from "../visualProfiles.js";
 
 export class MelodyRibbon {
   constructor(scene) {
@@ -8,6 +9,7 @@ export class MelodyRibbon {
     this.echoPoints = [];
     this.energy = 0;
     this.mix = 1;
+    this.motion = DEFAULT_VISUAL_PROFILE.motion;
 
     for (let i = 0; i < this.maxPoints; i++) {
       const x = (i - this.maxPoints / 2) * 0.035;
@@ -39,6 +41,12 @@ export class MelodyRibbon {
     this.line.add(this.primaryLine);
 
     this.scene.add(this.line);
+  }
+
+  applyVisualProfile(profile) {
+    this.motion = profile.motion;
+    this.material.color.setHex(profile.colors.melody.primary);
+    this.echoMaterial.color.setHex(profile.colors.melody.echo);
   }
 
   update(melodyData) {
@@ -76,9 +84,12 @@ export class MelodyRibbon {
     this.echoPoints[this.maxPoints - 1].y = targetY - 0.16;
     this.echoPoints[this.maxPoints - 1].z = -this.points[this.maxPoints - 1].z;
 
-    this.material.opacity = Math.min(0.94, 0.45 + melodyData.rms * 1.6) * this.mix;
+    this.material.opacity =
+      Math.min(0.94, 0.45 + melodyData.rms * 1.6 * this.motion.melodyGlow) *
+      this.mix;
     this.echoMaterial.opacity =
-      Math.min(0.5, 0.18 + melodyData.rms * 0.9) * this.mix;
+      Math.min(0.5, 0.18 + melodyData.rms * 0.9 * this.motion.melodyGlow) *
+      this.mix;
     this.geometry.setFromPoints(this.points);
     this.echoGeometry.setFromPoints(this.echoPoints);
   }
