@@ -5,34 +5,31 @@
       "id": "bass-track",
       "title": "Bass Track",
       "artist": "Demo selection",
-      "audioUrl": "/audio/instrumental/bass_track_instrumental.mp3",
+      "audioUrl": "/audio/bass_track.mp3",
       "sourceAudioUrl": "/audio/bass_track.mp3",
       "featuresFile": "features/bass_track.json",
       "visualProfile": "bass-heavy",
-      "prepared": true,
-      "note": "Instrumental playback without vocals; low-frequency profile for bass shockwaves"
+      "prepared": true
     },
     {
       "id": "party-tau-mich-auf",
       "title": "Tau mich auf",
       "artist": "Zartmann",
-      "audioUrl": "/audio/instrumental/tau_mich_auf_instrumental.mp3",
+      "audioUrl": "/audio/tau_mich_auf.mp3",
       "sourceAudioUrl": "/audio/tau_mich_auf.mp3",
       "featuresFile": "features/tau_mich_auf.json",
       "visualProfile": "party",
-      "prepared": true,
-      "note": "Instrumental playback without vocals; beat-heavy party profile"
+      "prepared": true
     },
     {
       "id": "melodic-innerbloom",
       "title": "Innerbloom",
       "artist": "RUFUS DU SOL",
-      "audioUrl": "/audio/instrumental/innerbloom_instrumental.mp3",
+      "audioUrl": "/audio/innerbloom.mp3",
       "sourceAudioUrl": "/audio/innerbloom.mp3",
       "featuresFile": "features/innerbloom.json",
       "visualProfile": "melodic",
-      "prepared": true,
-      "note": "Instrumental playback without vocals; melodic and harmonic profile"
+      "prepared": true
     },
     {
       "id": "hip-hop-heartless",
@@ -60,12 +57,11 @@
       "id": "cinematic-outro",
       "title": "Outro",
       "artist": "M83",
-      "audioUrl": "/audio/instrumental/outro_instrumental.mp3",
+      "audioUrl": "/audio/outro.mp3",
       "sourceAudioUrl": "/audio/outro.mp3",
       "featuresFile": "features/outro.json",
       "visualProfile": "cinematic",
-      "prepared": true,
-      "note": "Instrumental playback without vocals; cinematic profile for atmospheric closing"
+      "prepared": true
     }
   ]
 }

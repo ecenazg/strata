@@ -8,6 +8,15 @@ import { orderedStemColors, resolveVisualProfile } from "./visualProfiles.js";
 import GUI from "lil-gui";
 import "./style.css";
 
+/**
+ * Resolves a path against Vite's BASE_URL so assets work on GitHub Pages
+ * sub-paths (e.g. /strata/) as well as the local dev server (/).
+ */
+function resolveAssetUrl(path) {
+  const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  return base + (path.startsWith("/") ? path : "/" + path);
+}
+
 const sceneManager = new SceneManager();
 const overlay = createCinematicOverlay();
 let activeVisualProfile = resolveVisualProfile(null);
@@ -85,7 +94,7 @@ const recorderControls = {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Strata_Visualizer_Export.webm`; // İndirilen video adı
+        a.download = `Strata_Visualizer_Export.webm`;
         a.click();
         URL.revokeObjectURL(url);
         overlay.state.textContent = "recording saved";
@@ -149,18 +158,6 @@ const onPlaybackEnded = () => {
   resetPlaybackVisualState("click to replay", "ready for replay");
 };
 
-const onBackendReady = (message) => {
-  if (message.track_id) {
-    const track = availableTracks.find((item) => item.id === message.track_id);
-    if (track) {
-      selectedTrack = track;
-      overlay.trackSelect.value = track.id;
-      applyTrackVisualProfile(track);
-      updateTrackStatus(`ready · ${formatTime(message.duration ?? 0)}`);
-    }
-  }
-};
-
 function resetPlaybackVisualState(stateText = "track ready", phaseText = "opening sequence") {
   activePhase = "opening";
   previousPhase = "opening";
@@ -176,12 +173,7 @@ function resetPlaybackVisualState(stateText = "track ready", phaseText = "openin
   overlay.progressTrack.setAttribute("aria-valuenow", "0");
 }
 
-const audioManager = new AudioSyncManager(
-  onFrameReceived,
-  null,
-  onPlaybackEnded,
-  onBackendReady,
-);
+const audioManager = new AudioSyncManager(onFrameReceived, onPlaybackEnded);
 loadTrackManifest();
 
 window.strataDemo = {
@@ -276,6 +268,10 @@ function createCinematicOverlay() {
       <h1>STRATA</h1>
       <p class="subtitle">Hidden orchestral layers translated into a cinematic real-time 3D music visualisation.</p>
     </section>
+    <div class="track-info" data-track-info>
+      <p class="track-name" data-track-name></p>
+      <p class="track-artist" data-track-artist></p>
+    </div>
     <div class="audio-state" data-state>waiting for feature stream</div>
     <div class="stem-legend" aria-label="Stem colour legend">
       <span class="legend-item bass"><i></i>Bass</span>
@@ -316,12 +312,15 @@ function createCinematicOverlay() {
     trackSelect: root.querySelector("[data-track-select]"),
     trackStatus: root.querySelector("[data-track-status]"),
     profile: root.querySelector("[data-profile]"),
+    trackInfo: root.querySelector("[data-track-info]"),
+    trackName: root.querySelector("[data-track-name]"),
+    trackArtist: root.querySelector("[data-track-artist]"),
   };
 }
 
 async function loadTrackManifest() {
   try {
-    const response = await fetch("/tracks.json", { cache: "no-store" });
+    const response = await fetch(resolveAssetUrl("/tracks.json"), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const manifest = await response.json();
     availableTracks = (manifest.tracks ?? []).filter((track) => track.prepared !== false);
@@ -334,11 +333,20 @@ async function loadTrackManifest() {
     selectedTrack =
       availableTracks.find((track) => track.id === manifest.defaultTrackId) ??
       availableTracks[0];
-    audioManager.trackId = selectedTrack.id;
-    audioManager.audio.src = selectedTrack.audioUrl;
     applyTrackVisualProfile(selectedTrack);
     populateTrackSelector();
-    updateTrackStatus(`prepared ${availableTracks.length} track`);
+    updateTrackStatus("loading...");
+    try {
+      await audioManager.setTrack({
+        ...selectedTrack,
+        audioUrl: resolveAssetUrl(selectedTrack.audioUrl),
+        featuresFile: resolveAssetUrl(selectedTrack.featuresFile),
+      });
+      updateTrackStatus(`ready · ${formatTime(audioManager.duration)} · click to play`);
+    } catch (err) {
+      console.warn("[Strata] Features not yet extracted for:", selectedTrack.id, err.message);
+      updateTrackStatus("features pending — run prepare_tracks.py");
+    }
   } catch (error) {
     console.error("Could not load track manifest:", error);
     updateTrackStatus("track manifest missing");
@@ -360,15 +368,23 @@ function populateTrackSelector() {
   });
 }
 
-function selectTrackById(trackId) {
+async function selectTrackById(trackId) {
   const track = availableTracks.find((item) => item.id === trackId);
   if (!track) return;
-
   selectedTrack = track;
-  audioManager.setTrack(track);
   applyTrackVisualProfile(track);
-  resetPlaybackVisualState("track selected", "opening sequence");
-  updateTrackStatus("selected · click to play");
+  resetPlaybackVisualState("loading...", "opening sequence");
+  try {
+    await audioManager.setTrack({
+      ...track,
+      audioUrl: resolveAssetUrl(track.audioUrl),
+      featuresFile: resolveAssetUrl(track.featuresFile),
+    });
+    updateTrackStatus(`ready · ${formatTime(audioManager.duration)} · click to play`);
+  } catch (err) {
+    console.warn("[Strata] Features not yet extracted for:", track.id, err.message);
+    updateTrackStatus("features pending — run prepare_tracks.py");
+  }
 }
 
 function updateTrackStatus(text) {
@@ -379,6 +395,8 @@ function applyTrackVisualProfile(track) {
   activeVisualProfile = resolveVisualProfile(track);
   applyVisualProfile(activeVisualProfile);
   overlay.profile.textContent = activeVisualProfile.label;
+  if (overlay.trackName) overlay.trackName.textContent = track.title ?? "";
+  if (overlay.trackArtist) overlay.trackArtist.textContent = track.artist ?? "";
 }
 
 function applyVisualProfile(profile) {
@@ -388,9 +406,18 @@ function applyVisualProfile(profile) {
   melodyVisualizer.applyVisualProfile(profile);
   harmonicVisualizer.applyVisualProfile(profile);
 
+  // Update stem colour CSS variables — drives legend dots, progress bar, phase-dot
   const stemColors = orderedStemColors(profile);
   for (const [stem, color] of Object.entries(stemColors)) {
     document.body.style.setProperty(`--stem-${stem}`, color);
+  }
+
+  // Update beat-flash overlay colours to match the active genre palette
+  if (profile.colors.flashWarm) {
+    document.body.style.setProperty("--profile-flash-warm", profile.colors.flashWarm);
+  }
+  if (profile.colors.flashCool) {
+    document.body.style.setProperty("--profile-flash-cool", profile.colors.flashCool);
   }
 }
 

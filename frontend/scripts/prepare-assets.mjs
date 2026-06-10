@@ -1,4 +1,5 @@
-import { copyFile, mkdir, access } from "node:fs/promises";
+import { copyFile, mkdir, access, cp, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,6 +35,20 @@ for (const src of [tracksSource, tracksAlt]) {
   } catch {
     // try next
   }
+}
+
+// Copy features/ directory (per-track JSON produced by the analysis pipeline)
+const featuresDir = resolve(projectDir, "features");
+const featuresDirDest = resolve(frontendDir, "public", "features");
+
+try {
+  await access(featuresDir);
+  // Use cp (Node 16.7+) for recursive directory copy
+  await cp(featuresDir, featuresDirDest, { recursive: true });
+  const entries = await readdir(featuresDirDest);
+  console.log(`Copied features/ → public/features/ (${entries.length} entries)`);
+} catch {
+  console.log("features/ directory not found at project root, skipping");
 }
 
 console.log("prepare-assets complete");

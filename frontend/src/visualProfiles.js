@@ -167,6 +167,66 @@ export const VISUAL_PROFILES = {
       harmonic: 0.48,
     },
   }),
+  /**
+   * Hip-hop / soulful — warm gold & deep purple with punchy drums and
+   * just enough harmonic presence for soulful samples (e.g. Kanye "Heartless").
+   * Visually distinct from "party": darker, warmer, amber-dominant palette.
+   */
+  "hip-hop": mergeProfile(BASE_PROFILE, {
+    id: "hip-hop",
+    label: "Hip-hop / soulful",
+    description: "Warm amber-gold and deep purple palette for beat-driven tracks with soulful samples.",
+    colors: {
+      background: 0x08050e,
+      ambient: 0x8b3a8b,
+      keyLight: 0xffd700,
+      warmLight: 0xff8c00,
+      coolLight: 0x9b59b6,
+      core: 0xffd700,
+      flashWarm: "255, 140, 0",
+      flashCool: "155, 89, 182",
+      stars: [0xffd700, 0xff8c00, 0x9b59b6],
+      stage: [0xff8c00, 0x9b59b6],
+      incoming: 0xffd700,
+      stems: {
+        bass: 0xff6b35,
+        drums: 0xffd700,
+        melody: 0xe8b4c8,
+        harmony: 0xb07cff,
+      },
+      bass: {
+        floor: 0x7a1a00,
+        rings: [0xff4500, 0xff6b35, 0xcc3300],
+      },
+      drums: {
+        particles: 0xffd700,
+      },
+      melody: {
+        primary: 0xe8b4c8,
+        echo: 0xffd700,
+      },
+      harmony: {
+        rings: [0x7b2d8b, 0xb07cff, 0xffd700],
+        cloud: [0x7b2d8b, 0xb07cff, 0xff8c00],
+      },
+    },
+    motion: {
+      beatFlash: 1.28,
+      bloomBase: 0.76,
+      bloomBeat: 0.88,
+      cameraPunch: 1.45,
+      bassScale: 1.35,
+      bassIntensity: 1.42,
+      drumSize: 1.38,
+      melodyGlow: 0.92,
+      harmonyMist: 0.78,
+    },
+    minimumMix: {
+      bass: 0.24,
+      drums: 0.52,
+      melody: 0.12,
+    },
+  }),
   "bass-heavy": mergeProfile(BASE_PROFILE, {
     id: "bass-heavy",
     label: "Bass-heavy club",
