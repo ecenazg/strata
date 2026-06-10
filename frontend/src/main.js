@@ -343,7 +343,7 @@ function createCinematicOverlay() {
           <div class="info-section">
             <h3 class="info-section-title">Currently Working</h3>
             <ul class="info-list">
-              <li class="info-item info-done">6 tracks spanning 3 genres — hip-hop, psychedelic rock, cinematic/electronic</li>
+              <li class="info-item info-done">7 tracks spanning 4 genres — hip-hop, psychedelic rock, cinematic/electronic, solo piano</li>
               <li class="info-item info-done">HPSS source separation: harmonic + percussive split, ~60 fps feature frames</li>
               <li class="info-item info-done">Per-stem features: RMS energy, onset strength, spectral centroid, chroma[12], beat phase</li>
               <li class="info-item info-done">4 independent 3D visualisers each driven by a dedicated stem</li>

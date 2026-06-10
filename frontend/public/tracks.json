@@ -60,6 +60,16 @@
       "featuresFile": "features/outro.json",
       "visualProfile": "cinematic",
       "prepared": true
+    },
+    {
+      "id": "piano-the-mountain",
+      "title": "The Mountain",
+      "artist": "Piano",
+      "audioUrl": "/audio/piano_the_mountain.mp3",
+      "sourceAudioUrl": "/audio/piano_the_mountain.mp3",
+      "featuresFile": "features/piano-the-mountain.json",
+      "visualProfile": "cinematic",
+      "prepared": true
     }
   ]
 }
