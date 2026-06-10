@@ -39,8 +39,7 @@
       "sourceAudioUrl": "/audio/kanye_heartless.mp3",
       "featuresFile": "features/hip-hop-heartless.json",
       "visualProfile": "hip-hop",
-      "prepared": true,
-      "note": "Run: python prepare_tracks.py --tracks hip-hop-heartless"
+      "prepared": true
     },
     {
       "id": "psychedelic-dracula",
@@ -50,8 +49,7 @@
       "sourceAudioUrl": "/audio/tame_impala_dracula.mp3",
       "featuresFile": "features/psychedelic-dracula.json",
       "visualProfile": "melodic",
-      "prepared": true,
-      "note": "Run: python prepare_tracks.py --tracks psychedelic-dracula"
+      "prepared": true
     },
     {
       "id": "cinematic-outro",
