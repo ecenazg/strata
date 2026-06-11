@@ -16,6 +16,7 @@ export class SceneManager {
     this.separationReveal = 0;
     this.transitionPulse = 0;
     this.beatPulse = 0;
+    this.beatFovPulse = 0;
     this.cameraControls = {
       azimuth: 0,
       elevation: 0.24,
@@ -164,6 +165,16 @@ export class SceneManager {
       (this.beatPulse * motion.beatFlash).toFixed(3)
     );
     this._updateSeparationStreams(elapsed, frame);
+
+    // Beat FOV punch — decays smoothly between beats
+    this.beatFovPulse = Math.max(0, this.beatFovPulse - 0.10);
+    this.camera.fov = 48 + this.beatFovPulse * 7 * (motion.cameraPunch ?? 1);
+    this.camera.updateProjectionMatrix();
+  }
+
+  /** Call on each detected downbeat to trigger FOV spike */
+  triggerBeat() {
+    this.beatFovPulse = 1.0;
   }
 
   render() {

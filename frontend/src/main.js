@@ -127,6 +127,56 @@ let activePhase = "opening";
 let previousPhase = "opening";
 let availableTracks = [];
 let selectedTrack = null;
+let soloStem = null; // 'bass' | 'drums' | 'melody' | 'harmonic' | null
+
+// ── Chroma ring setup ──────────────────────────────────────────────────────
+const CHROMA_NOTES = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const chromaSegs = [];
+
+(function setupChromaRing() {
+  const svg = overlay.chromaRing;
+  const cx = 70, cy = 70, r1 = 36, r2 = 58, gap = 3;
+  const toRad = a => a * Math.PI / 180;
+
+  function arcPath(i) {
+    const s = i * 30 - 90 + gap / 2;
+    const e = (i + 1) * 30 - 90 - gap / 2;
+    const cos = Math.cos, sin = Math.sin;
+    const x1 = cx + r2 * cos(toRad(s)), y1 = cy + r2 * sin(toRad(s));
+    const x2 = cx + r2 * cos(toRad(e)), y2 = cy + r2 * sin(toRad(e));
+    const x3 = cx + r1 * cos(toRad(e)), y3 = cy + r1 * sin(toRad(e));
+    const x4 = cx + r1 * cos(toRad(s)), y4 = cy + r1 * sin(toRad(s));
+    return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r2},${r2} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r1},${r1} 0 0,0 ${x4.toFixed(2)},${y4.toFixed(2)}Z`;
+  }
+
+  const ns = 'http://www.w3.org/2000/svg';
+  // Group for segments
+  const gSegs = document.createElementNS(ns, 'g');
+  svg.appendChild(gSegs);
+  // Group for labels
+  const gLabels = document.createElementNS(ns, 'g');
+  svg.appendChild(gLabels);
+
+  for (let i = 0; i < 12; i++) {
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', arcPath(i));
+    path.setAttribute('class', 'chroma-seg');
+    path.style.opacity = '0.06';
+    gSegs.appendChild(path);
+    chromaSegs.push(path);
+
+    const midAngle = toRad(i * 30 - 90 + 15);
+    const lr = r2 + 11;
+    const text = document.createElementNS(ns, 'text');
+    text.setAttribute('x', (cx + lr * Math.cos(midAngle)).toFixed(2));
+    text.setAttribute('y', (cy + lr * Math.sin(midAngle)).toFixed(2));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('class', 'chroma-label');
+    text.textContent = CHROMA_NOTES[i];
+    gLabels.appendChild(text);
+  }
+})();
 
 const onFrameReceived = (frameData) => {
   latestFrame = frameData;
@@ -152,6 +202,26 @@ const onFrameReceived = (frameData) => {
   if (layers.harmonic) harmonicVisualizer.update(frameData.harmonic);
 
   applyPhaseMix(activePhase);
+
+  // VU meters — update bar heights from per-stem RMS
+  const vuStems = { bass: frameData.bass, drums: frameData.drums, melody: frameData.melody, harmonic: frameData.harmonic };
+  for (const [stem, data] of Object.entries(vuStems)) {
+    const bar = overlay.vuBars[stem];
+    if (bar) bar.style.transform = `scaleY(${(data.rms ?? 0).toFixed(3)})`;
+  }
+
+  // Chroma ring — average chroma across melody + harmonic stems
+  const chromaMel = frameData.melody?.chroma ?? [];
+  const chromaHarm = frameData.harmonic?.chroma ?? [];
+  for (let i = 0; i < 12; i++) {
+    const v = ((chromaMel[i] ?? 0) + (chromaHarm[i] ?? 0)) * 0.5;
+    chromaSegs[i].style.opacity = (0.07 + v * 0.93).toFixed(3);
+  }
+
+  // Beat FOV punch — trigger on downbeat
+  if (frameData.drums?.beat_phase === 1.0 || frameData.bass?.beat_phase === 1.0) {
+    sceneManager.triggerBeat();
+  }
 };
 
 const onPlaybackEnded = () => {
@@ -231,6 +301,20 @@ window.addEventListener("click", (e) => {
 overlay.infoToggle.addEventListener("click", toggleInfoPanel);
 overlay.infoClose.addEventListener("click", () => { overlay.infoPanel.hidden = true; });
 
+// Solo mode: click legend item to isolate that stem
+overlay.legendItems.forEach(item => {
+  item.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const stem = item.dataset.soloStem;
+    soloStem = soloStem === stem ? null : stem;
+    overlay.legendItems.forEach(li => {
+      li.classList.toggle("solo-active", li.dataset.soloStem === soloStem);
+      li.classList.toggle("solo-dimmed", soloStem !== null && li.dataset.soloStem !== soloStem);
+    });
+    if (latestFrame) applyPhaseMix(activePhase);
+  });
+});
+
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
 
@@ -282,11 +366,12 @@ function createCinematicOverlay() {
     </div>
     <div class="audio-state" data-state>waiting for feature stream</div>
     <div class="stem-legend" aria-label="Stem colour legend">
-      <span class="legend-item bass"><i></i>Bass</span>
-      <span class="legend-item drums"><i></i>Drums</span>
-      <span class="legend-item melody"><i></i>Melody</span>
-      <span class="legend-item harmony"><i></i>Harmony</span>
+      <span class="legend-item bass"    data-solo-stem="bass">    <span class="vu-wrap"><span class="vu-bar" data-vu="bass"></span></span>    <i></i>Bass</span>
+      <span class="legend-item drums"   data-solo-stem="drums">   <span class="vu-wrap"><span class="vu-bar" data-vu="drums"></span></span>   <i></i>Drums</span>
+      <span class="legend-item melody"  data-solo-stem="melody">  <span class="vu-wrap"><span class="vu-bar" data-vu="melody"></span></span>  <i></i>Melody</span>
+      <span class="legend-item harmony" data-solo-stem="harmonic"><span class="vu-wrap"><span class="vu-bar" data-vu="harmonic"></span></span><i></i>Harmony</span>
     </div>
+    <svg class="chroma-ring" data-chroma-ring viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" aria-label="Chromatic energy ring"></svg>
     <div class="track-picker" data-track-picker>
       <label for="track-select">Track</label>
       <select id="track-select" data-track-select aria-label="Demo track"></select>
@@ -407,6 +492,11 @@ function createCinematicOverlay() {
     profileBanner: root.querySelector("[data-profile-banner]"),
     profileBannerName: root.querySelector("[data-profile-banner-name]"),
     profileBannerDesc: root.querySelector("[data-profile-banner-desc]"),
+    chromaRing: root.querySelector("[data-chroma-ring]"),
+    vuBars: Object.fromEntries(
+      [...root.querySelectorAll("[data-vu]")].map(el => [el.dataset.vu, el])
+    ),
+    legendItems: [...root.querySelectorAll("[data-solo-stem]")],
   };
 }
 
@@ -619,6 +709,15 @@ function applyPhaseMix(phase) {
     melody: Math.max(baseMix.melody, minimumMix.melody ?? 0),
     harmonic: Math.max(baseMix.harmonic, minimumMix.harmonic ?? 0),
   };
+
+  // Solo override — boost soloed stem to full, fade all others to near-zero
+  if (soloStem) {
+    const ghostMix = 0.03;
+    mix.bass     = soloStem === 'bass'     ? 1.0 : ghostMix;
+    mix.drums    = soloStem === 'drums'    ? 1.0 : ghostMix;
+    mix.melody   = soloStem === 'melody'   ? 1.0 : ghostMix;
+    mix.harmonic = soloStem === 'harmonic' ? 1.0 : ghostMix;
+  }
 
   bassVisualizer.setMix(mix.bass);
   drumVisualizer.setMix(mix.drums);

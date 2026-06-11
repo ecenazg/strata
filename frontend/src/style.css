@@ -393,6 +393,86 @@ body {
   z-index: 4;
 }
 
+/* ── VU Meters ───────────────────────────────────────────────────────────── */
+.vu-wrap {
+  display: inline-flex;
+  align-items: flex-end;
+  width: 4px;
+  height: 22px;
+  margin-right: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 1px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vu-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleY(0);
+  transform-origin: bottom center;
+  border-radius: 1px;
+  transition: transform 55ms linear;
+}
+
+.legend-item.bass .vu-bar    { background: var(--stem-bass);    box-shadow: 0 0 8px var(--stem-bass); }
+.legend-item.drums .vu-bar   { background: var(--stem-drums);   box-shadow: 0 0 8px var(--stem-drums); }
+.legend-item.melody .vu-bar  { background: var(--stem-melody);  box-shadow: 0 0 8px var(--stem-melody); }
+.legend-item.harmony .vu-bar { background: var(--stem-harmony); box-shadow: 0 0 8px var(--stem-harmony); }
+
+/* ── Solo Mode ───────────────────────────────────────────────────────────── */
+.stem-legend {
+  pointer-events: auto;
+  cursor: default;
+}
+
+.legend-item {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: opacity 220ms ease, background 220ms ease;
+  user-select: none;
+}
+.legend-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+.legend-item.solo-active {
+  background: rgba(255, 255, 255, 0.1);
+  outline: 1px solid currentColor;
+}
+
+.legend-item.solo-dimmed {
+  opacity: 0.25;
+}
+
+/* ── Chroma Ring ─────────────────────────────────────────────────────────── */
+.chroma-ring {
+  position: absolute;
+  bottom: clamp(48px, 9vh, 96px);
+  right: clamp(24px, 4vw, 56px);
+  width: 140px;
+  height: 140px;
+  pointer-events: none;
+  opacity: 0.82;
+  transition: opacity 400ms ease;
+}
+
+.is-playing .chroma-ring { opacity: 1; }
+
+.chroma-seg {
+  fill: var(--stem-melody, #6dff8f);
+  transition: opacity 65ms linear, fill 600ms ease;
+}
+
+.chroma-label {
+  fill: rgba(200, 220, 255, 0.38);
+  font-size: 7px;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
 /* ── Info Toggle Button ──────────────────────────────────────────────────── */
 .info-toggle {
   position: absolute;
