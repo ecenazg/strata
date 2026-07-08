@@ -11,6 +11,14 @@ export class DrumParticles {
     this.previousHit = 0;
     this.mix = 1;
     this.motion = DEFAULT_VISUAL_PROFILE.motion;
+    this.motionProfile = {
+      onsetDensity: 0.45,
+      staccato: 0.45,
+      percussiveRatio: 0.35,
+      tempoStability: 0.45,
+      organicJitter: 0.55,
+      dynamicRange: { drums: 0.45 },
+    };
 
     const geometry = new THREE.BufferGeometry();
     this.positions = new Float32Array(this.particleCount * 3);
@@ -57,48 +65,80 @@ export class DrumParticles {
     this.material.color.setHex(profile.colors.drums.particles);
   }
 
+  applyMotionProfile(profile) {
+    this.motionProfile = profile;
+  }
+
   update(drumData) {
     const hit = Math.max(drumData.onset, drumData.rms * 0.85);
+    const staccato = this.motionProfile.staccato ?? 0.45;
+    const percussive = this.motionProfile.percussiveRatio ?? 0.35;
+    const stable = this.motionProfile.tempoStability ?? 0.45;
+    const organic = this.motionProfile.organicJitter ?? 0.55;
+    const drumRange = this.motionProfile.dynamicRange?.drums ?? 0.45;
+    const hitThreshold = THREE.MathUtils.lerp(0.54, 0.14, staccato);
+    const hitDelta = THREE.MathUtils.lerp(0.11, 0.025, staccato);
 
     if (this.cooldown > 0) this.cooldown -= 1;
-    if (hit > 0.32 && hit > this.previousHit + 0.06 && this.cooldown === 0) {
+    if (hit > hitThreshold && hit > this.previousHit + hitDelta && this.cooldown === 0) {
       this.burstProgress = 0;
-      this.burstStrength = Math.min(1, hit * 1.35);
-      this.cooldown = 5;
+      this.burstStrength = Math.min(1, hit * (1.1 + percussive * 0.65 + drumRange * 0.3));
+      this.cooldown = Math.round(THREE.MathUtils.lerp(18, 1, staccato));
     }
     this.previousHit = hit;
 
     this.burstProgress = Math.min(
       1,
-      this.burstProgress + 0.036 + this.burstStrength * 0.018
+      this.burstProgress +
+        THREE.MathUtils.lerp(0.011, 0.095, staccato) +
+        this.burstStrength * THREE.MathUtils.lerp(0.006, 0.038, staccato)
     );
 
-    const envelope = Math.pow(1 - this.burstProgress, 1.55);
-    const spread = 0.16 + this.burstProgress * (1.45 + this.burstStrength * 1.4);
-    const swirl = envelope * 0.18;
+    const decayCurve = THREE.MathUtils.lerp(0.82, 2.35, staccato);
+    const envelope = Math.pow(1 - this.burstProgress, decayCurve);
+    const spread =
+      0.14 +
+      this.burstProgress *
+        THREE.MathUtils.lerp(4.15 + this.burstStrength * 2.2, 1.08 + this.burstStrength * 0.72, staccato);
+    const swirl = envelope * THREE.MathUtils.lerp(0.32, 0.08, stable);
+    const gridLock = stable * staccato;
 
     for (let i = 0; i < this.particleCount; i++) {
       const speed = this.speeds[i];
       const r = spread * speed;
-      const spin = Math.sin(this.jitter[i] + this.burstProgress * 9) * swirl;
+      const rhythmicStep = Math.round(this.burstProgress * 12) / 12;
+      const progressForMotion = THREE.MathUtils.lerp(this.burstProgress, rhythmicStep, gridLock * 0.42);
+      const spin =
+        Math.sin(this.jitter[i] + progressForMotion * (8 + staccato * 7)) *
+        swirl *
+        (0.65 + organic * 0.55);
+      const facetedLift = Math.sign(this.directions[i * 3]) * envelope * percussive * 0.05;
 
-      this.positions[i * 3] = this.directions[i * 3] * r + spin;
+      this.positions[i * 3] = this.directions[i * 3] * r + spin + facetedLift;
       this.positions[i * 3 + 1] =
-        this.directions[i * 3 + 1] * r + envelope * this.burstStrength * 0.34;
-      this.positions[i * 3 + 2] = this.directions[i * 3 + 2] * r - spin * 0.6;
+        this.directions[i * 3 + 1] * r +
+        envelope * this.burstStrength * THREE.MathUtils.lerp(0.55, 0.25, staccato);
+      this.positions[i * 3 + 2] =
+        this.directions[i * 3 + 2] * r - spin * (0.35 + percussive * 0.38);
     }
 
     this.positionAttribute.needsUpdate = true;
     this.material.opacity =
       Math.min(
       0.92,
-      0.08 + hit * 0.28 + envelope * (0.52 + this.burstStrength * 0.35)
+      0.06 + hit * (0.22 + percussive * 0.18) + envelope * (0.5 + this.burstStrength * 0.42)
     ) * this.mix;
     this.material.size =
-      (0.044 + hit * 0.036 + envelope * 0.045) * this.motion.drumSize;
+      (THREE.MathUtils.lerp(0.058, 0.034, staccato) +
+        hit * THREE.MathUtils.lerp(0.025, 0.062, percussive) +
+        envelope * THREE.MathUtils.lerp(0.09, 0.022, staccato)) *
+      this.motion.drumSize;
 
-    this.points.rotation.y += 0.007 + this.burstStrength * envelope * 0.02;
-    this.points.rotation.x += 0.0025;
+    this.points.rotation.y +=
+      0.004 +
+      stable * 0.004 +
+      this.burstStrength * envelope * THREE.MathUtils.lerp(0.012, 0.035, gridLock);
+    this.points.rotation.x += 0.0015 + organic * 0.0025;
   }
 
   setMix(mix) {

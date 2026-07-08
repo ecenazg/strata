@@ -7,12 +7,29 @@ import { DEFAULT_VISUAL_PROFILE } from "./visualProfiles.js";
 const LOOK_AT = new THREE.Vector3(0, 0.75, -2.2);
 const MIN_CAMERA_DISTANCE = 4.2;
 const MAX_CAMERA_DISTANCE = 13.5;
+const CAMERA_PHASES = {
+  opening: { distance: 8.9, elevation: 0.26, orbitSpeed: 0.00032 },
+  separation: { distance: 7.4, elevation: 0.34, orbitSpeed: 0.0011 },
+  bass: { distance: 6.5, elevation: -0.08, orbitSpeed: 0.00072 },
+  drums: { distance: 6.1, elevation: 0.3, orbitSpeed: 0.00135 },
+  melody: { distance: 7.2, elevation: 0.18, orbitSpeed: 0.00092 },
+  harmony: { distance: 8.7, elevation: 0.54, orbitSpeed: 0.00055 },
+  combined: { distance: 7.9, elevation: 0.3, orbitSpeed: 0.00082 },
+  closing: { distance: 9.4, elevation: 0.38, orbitSpeed: 0.00036 },
+};
 
 export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
     this.phase = "opening";
     this.profile = DEFAULT_VISUAL_PROFILE;
+    this.motionProfile = {
+      staccato: 0.45,
+      tempoStability: 0.45,
+      organicJitter: 0.55,
+      percussiveRatio: 0.35,
+      harmonicRatio: 0.65,
+    };
     this.separationReveal = 0;
     this.transitionPulse = 0;
     this.beatPulse = 0;
@@ -121,6 +138,10 @@ export class SceneManager {
     document.body.style.setProperty("--profile-flash-cool", profile.colors.flashCool);
   }
 
+  applyMotionProfile(profile) {
+    this.motionProfile = profile;
+  }
+
   update(elapsed, frame) {
     const bass = frame?.bass?.rms ?? 0;
     const drums = frame?.drums?.onset ?? 0;
@@ -150,7 +171,21 @@ export class SceneManager {
     });
 
     if (!this.cameraControls.dragging) {
-      this.cameraControls.azimuth += 0.0006;
+      const cameraPhase = CAMERA_PHASES[this.phase] ?? CAMERA_PHASES.combined;
+      this.cameraControls.distance = THREE.MathUtils.lerp(
+        this.cameraControls.distance,
+        cameraPhase.distance,
+        0.006 + this.transitionPulse * 0.018
+      );
+      this.cameraControls.elevation = THREE.MathUtils.lerp(
+        this.cameraControls.elevation,
+        cameraPhase.elevation,
+        0.01 + this.transitionPulse * 0.02
+      );
+      this.cameraControls.azimuth +=
+        cameraPhase.orbitSpeed +
+        this.motionProfile.tempoStability * 0.00045 +
+        Math.sin(elapsed * 0.7) * this.motionProfile.organicJitter * 0.00018;
     }
     this._updateCameraPosition();
 
@@ -159,7 +194,10 @@ export class SceneManager {
     this.cyanLight.intensity =
       1.8 + harmonic * 1.4 + drums * 0.6 + this.transitionPulse * 2.0 + this.beatPulse * 1.8;
     this.bloomPass.strength =
-      motion.bloomBase + this.beatPulse * motion.bloomBeat + this.transitionPulse * 0.2;
+      motion.bloomBase +
+      this.beatPulse * motion.bloomBeat * (0.82 + this.motionProfile.staccato * 0.32) +
+      this.transitionPulse * 0.2 +
+      this.motionProfile.harmonicRatio * 0.05;
     document.body.style.setProperty(
       "--beat-flash",
       (this.beatPulse * motion.beatFlash).toFixed(3)
@@ -167,14 +205,17 @@ export class SceneManager {
     this._updateSeparationStreams(elapsed, frame);
 
     // Beat FOV punch — decays smoothly between beats
-    this.beatFovPulse = Math.max(0, this.beatFovPulse - 0.10);
+    this.beatFovPulse = Math.max(
+      0,
+      this.beatFovPulse - THREE.MathUtils.lerp(0.065, 0.14, this.motionProfile.staccato)
+    );
     this.camera.fov = 48 + this.beatFovPulse * 7 * (motion.cameraPunch ?? 1);
     this.camera.updateProjectionMatrix();
   }
 
   /** Call on each detected downbeat to trigger FOV spike */
   triggerBeat() {
-    this.beatFovPulse = 1.0;
+    this.beatFovPulse = 0.72 + this.motionProfile.tempoStability * 0.42;
   }
 
   render() {
@@ -361,7 +402,7 @@ export class SceneManager {
 
   _updateSeparationStreams(elapsed, frame) {
     const targetReveal =
-      this.phase === "separation" ? 1 : this.phase === "combined" ? 0.32 : 0.12;
+      this.phase === "separation" ? 1 : this.phase === "combined" ? 0.16 : 0.035;
     this.separationReveal += (targetReveal - this.separationReveal) * 0.08;
 
     const allStreams = [this.incomingStream, ...this.separationStreams];
@@ -444,7 +485,9 @@ export class SceneManager {
     const { azimuth, elevation, distance } = this.cameraControls;
     const punchedDistance =
       distance -
-      this.beatPulse * 0.42 * this.profile.motion.cameraPunch -
+      this.beatPulse *
+        THREE.MathUtils.lerp(0.24, 0.55, this.motionProfile.tempoStability) *
+        this.profile.motion.cameraPunch -
       this.transitionPulse * 0.18;
     const horizontalDistance = Math.cos(elevation) * punchedDistance;
 

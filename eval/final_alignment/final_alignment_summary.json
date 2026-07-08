@@ -1,0 +1,215 @@
+{
+  "generatedAt": "2026-07-08T07:25:02.951Z",
+  "defaultTrackId": "party-tau-mich-auf",
+  "preparedTrackCount": 7,
+  "allPreparedTracksHaveAudioAndFeatures": true,
+  "visualProfiles": [
+    "bass-heavy",
+    "cinematic",
+    "hip-hop",
+    "melodic",
+    "party"
+  ],
+  "motionLabels": [
+    "bass-dominant",
+    "beat-locked",
+    "harmonic-flow"
+  ],
+  "claims": {
+    "multiTrackSupport": "The deployed demo supports multiple prepared tracks through tracks.json.",
+    "fullDemucsLibrary": "Every prepared track has a matching per-stem feature JSON generated from the Demucs-based pipeline.",
+    "silentViewReadability": "Feature-derived motion profiles modulate particle lifetime, shockwave behavior, harmonic flow, and camera/lighting response so musical character is visible beyond color palette changes.",
+    "staticDeployment": "Motion profiles are computed client-side from precomputed feature JSON, preserving the no-server GitHub Pages deployment model."
+  },
+  "tracks": [
+    {
+      "id": "bass-track",
+      "title": "Bass Track",
+      "artist": "Demo selection",
+      "visualProfile": "bass-heavy",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 56.72,
+      "frameCount": 4886,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "bass-dominant",
+      "motionProfile": {
+        "onsetDensity": 0.492,
+        "staccato": 0.59,
+        "percussiveRatio": 0.72,
+        "harmonicRatio": 0.379,
+        "tempoStability": 0.466,
+        "bassDominance": 0.715
+      }
+    },
+    {
+      "id": "party-tau-mich-auf",
+      "title": "Tau mich auf",
+      "artist": "Zartmann",
+      "visualProfile": "party",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 27.44,
+      "frameCount": 2364,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "beat-locked",
+      "motionProfile": {
+        "onsetDensity": 0.709,
+        "staccato": 0.805,
+        "percussiveRatio": 0.664,
+        "harmonicRatio": 0.51,
+        "tempoStability": 0.757,
+        "bassDominance": 0.258
+      }
+    },
+    {
+      "id": "melodic-innerbloom",
+      "title": "Innerbloom",
+      "artist": "RUFUS DU SOL",
+      "visualProfile": "melodic",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 95.79,
+      "frameCount": 8252,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "harmonic-flow",
+      "motionProfile": {
+        "onsetDensity": 0.269,
+        "staccato": 0.276,
+        "percussiveRatio": 0.28,
+        "harmonicRatio": 0.794,
+        "tempoStability": 0.479,
+        "bassDominance": 0.242
+      }
+    },
+    {
+      "id": "hip-hop-heartless",
+      "title": "Heartless",
+      "artist": "Kanye West",
+      "visualProfile": "hip-hop",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 220.74,
+      "frameCount": 19013,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "bass-dominant",
+      "motionProfile": {
+        "onsetDensity": 0.438,
+        "staccato": 0.576,
+        "percussiveRatio": 0.616,
+        "harmonicRatio": 0.533,
+        "tempoStability": 0.62,
+        "bassDominance": 0.519
+      }
+    },
+    {
+      "id": "psychedelic-dracula",
+      "title": "Dracula",
+      "artist": "Tame Impala",
+      "visualProfile": "melodic",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 233.38,
+      "frameCount": 20103,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "harmonic-flow",
+      "motionProfile": {
+        "onsetDensity": 0.213,
+        "staccato": 0.218,
+        "percussiveRatio": 0.241,
+        "harmonicRatio": 0.834,
+        "tempoStability": 0.44,
+        "bassDominance": 0.245
+      }
+    },
+    {
+      "id": "cinematic-outro",
+      "title": "Outro",
+      "artist": "M83",
+      "visualProfile": "cinematic",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 78.83,
+      "frameCount": 6791,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "harmonic-flow",
+      "motionProfile": {
+        "onsetDensity": 0.126,
+        "staccato": 0.149,
+        "percussiveRatio": 0.225,
+        "harmonicRatio": 0.824,
+        "tempoStability": 0.166,
+        "bassDominance": 0.269
+      }
+    },
+    {
+      "id": "piano-the-mountain",
+      "title": "The Mountain",
+      "artist": "Piano",
+      "visualProfile": "cinematic",
+      "prepared": true,
+      "hasAudio": true,
+      "hasFeatures": true,
+      "durationSeconds": 122.04,
+      "frameCount": 10513,
+      "fps": 86.133,
+      "stems": [
+        "melody",
+        "bass",
+        "drums",
+        "harmonic"
+      ],
+      "motionLabel": "harmonic-flow",
+      "motionProfile": {
+        "onsetDensity": 0.144,
+        "staccato": 0.14,
+        "percussiveRatio": 0.273,
+        "harmonicRatio": 0.776,
+        "tempoStability": 0.441,
+        "bassDominance": 0.281
+      }
+    }
+  ]
+}

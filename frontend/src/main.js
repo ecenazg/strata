@@ -5,6 +5,7 @@ import { MelodyRibbon } from "./visualizers/MelodyRibbon.js";
 import { DrumParticles } from "./visualizers/DrumParticles.js";
 import { HarmonicCloud } from "./visualizers/HarmonicCloud.js";
 import { orderedStemColors, resolveVisualProfile } from "./visualProfiles.js";
+import { deriveTrackMotionProfile } from "./trackMotionProfile.js";
 import GUI from "lil-gui";
 import "./style.css";
 
@@ -20,19 +21,20 @@ function resolveAssetUrl(path) {
 const sceneManager = new SceneManager();
 const overlay = createCinematicOverlay();
 let activeVisualProfile = resolveVisualProfile(null);
+let activeMotionProfile = null;
 
 const bassVisualizer = new BassShockwave(sceneManager.scene);
 bassVisualizer.mesh.position.set(0, -1.45, -1.3);
 
 const melodyVisualizer = new MelodyRibbon(sceneManager.scene);
-melodyVisualizer.line.position.set(0, 0.45, -1.65);
+melodyVisualizer.line.position.set(0, 0.48, -1.25);
 
 const drumVisualizer = new DrumParticles(sceneManager.scene);
 drumVisualizer.points.position.set(0, 0.95, -2.15);
 
 const harmonicVisualizer = new HarmonicCloud(sceneManager.scene);
-harmonicVisualizer.group.position.set(0, 1.35, -3.25);
-harmonicVisualizer.group.scale.setScalar(0.62);
+harmonicVisualizer.group.position.set(0, 1.72, -3.85);
+harmonicVisualizer.group.scale.setScalar(0.66);
 applyVisualProfile(activeVisualProfile);
 
 const gui = new GUI({ title: "Strata Kontrol Merkezi" });
@@ -253,6 +255,7 @@ window.strataDemo = {
   toggle: () => audioManager.togglePlayback(),
   tracks: () => availableTracks,
   selectTrack: (trackId) => selectTrackById(trackId),
+  motionProfile: () => activeMotionProfile,
 };
 
 let isScrubbing = false;
@@ -378,6 +381,14 @@ function createCinematicOverlay() {
       <span class="visual-profile" data-profile>cinematic</span>
       <span data-track-status>loading tracks</span>
     </div>
+    <div class="motion-profile" data-motion-profile>
+      <div class="motion-profile-head">
+        <span>Motion</span>
+        <strong data-motion-label>Balanced</strong>
+      </div>
+      <p data-motion-desc>Feature-derived movement behaviour</p>
+      <i class="motion-line"><b data-motion-bar="rhythm"></b></i>
+    </div>
     <div
       class="progress-track"
       data-seek-track
@@ -415,11 +426,13 @@ function createCinematicOverlay() {
         <div class="info-pipeline">
           <div class="pipeline-step step-active"><span class="pip-label">MP3</span><span class="pip-desc">audio input</span></div>
           <span class="pip-arrow">→</span>
-          <div class="pipeline-step step-active"><span class="pip-label">HPSS</span><span class="pip-desc">librosa · ~60 s/track · CPU</span></div>
+          <div class="pipeline-step step-active"><span class="pip-label">Demucs</span><span class="pip-desc">htdemucs · full prepared library</span></div>
           <span class="pip-arrow">→</span>
-          <div class="pipeline-step step-planned"><span class="pip-label">Demucs</span><span class="pip-desc">htdemucs · GPU · planned</span></div>
+          <div class="pipeline-step step-active"><span class="pip-label">Stems</span><span class="pip-desc">vocals · bass · drums · other</span></div>
           <span class="pip-arrow">→</span>
           <div class="pipeline-step step-active"><span class="pip-label">Features</span><span class="pip-desc">RMS · onset · chroma · beat</span></div>
+          <span class="pip-arrow">→</span>
+          <div class="pipeline-step step-active"><span class="pip-label">Motion</span><span class="pip-desc">feature-derived physics profile</span></div>
           <span class="pip-arrow">→</span>
           <div class="pipeline-step step-active"><span class="pip-label">Three.js</span><span class="pip-desc">4 live 3D visualisers · 60 fps</span></div>
         </div>
@@ -429,8 +442,10 @@ function createCinematicOverlay() {
             <h3 class="info-section-title">Currently Working</h3>
             <ul class="info-list">
               <li class="info-item info-done">7 tracks spanning 4 genres — hip-hop, psychedelic rock, cinematic/electronic, solo piano</li>
-              <li class="info-item info-done">HPSS source separation: harmonic + percussive split, ~60 fps feature frames</li>
+              <li class="info-item info-done">Full Demucs htdemucs source separation for every prepared track</li>
+              <li class="info-item info-done">True 4-stem analysis: vocals / bass / drums / other mapped to melody / bass / drums / harmony</li>
               <li class="info-item info-done">Per-stem features: RMS energy, onset strength, spectral centroid, chroma[12], beat phase</li>
+              <li class="info-item info-done">Feature-derived motion profiles: beat-locked, bass-dominant, harmonic-flow, organic</li>
               <li class="info-item info-done">4 independent 3D visualisers each driven by a dedicated stem</li>
               <li class="info-item info-done">5 genre visual profiles — colour palette, motion multipliers, minimum-mix floor</li>
               <li class="info-item info-done">8-phase system — progressive layer introduction across track duration</li>
@@ -445,18 +460,26 @@ function createCinematicOverlay() {
             <h3 class="info-section-title">Visual Layer Mapping</h3>
             <div class="layer-grid">
               <div class="layer-row layer-bass"><span class="layer-dot"></span><strong>Bass</strong><span>BassShockwave rings — RMS-driven radius &amp; opacity</span></div>
-              <div class="layer-row layer-drums"><span class="layer-dot"></span><strong>Drums</strong><span>DrumParticles — burst on onset transients, beat-phase scale</span></div>
-              <div class="layer-row layer-melody"><span class="layer-dot"></span><strong>Melody</strong><span>MelodyRibbon polyline — pitch &amp; chroma deformation</span></div>
-              <div class="layer-row layer-harmonic"><span class="layer-dot"></span><strong>Harmony</strong><span>HarmonicCloud icosphere — chroma energy rotation</span></div>
+              <div class="layer-row layer-drums"><span class="layer-dot"></span><strong>Drums</strong><span>DrumParticles — onset density controls burst frequency and particle lifetime</span></div>
+              <div class="layer-row layer-melody"><span class="layer-dot"></span><strong>Melody</strong><span>MelodyRibbon polyline — pitch plus harmonic-flow controls trail and smoothness</span></div>
+              <div class="layer-row layer-harmonic"><span class="layer-dot"></span><strong>Harmony</strong><span>HarmonicCloud — harmonic ratio controls mist size, flow and persistence</span></div>
             </div>
+
+            <h3 class="info-section-title" style="margin-top:22px">Motion Evidence</h3>
+            <ul class="info-list">
+              <li class="info-item info-done">Rhythm score: onset density and tempo stability drive staccato vs flowing movement</li>
+              <li class="info-item info-done">Bass score: bass dominance increases low-frequency shockwave size and intensity</li>
+              <li class="info-item info-done">Harmony score: harmonic ratio increases cloud persistence and ribbon smoothness</li>
+              <li class="info-item info-done">Computed client-side from precomputed feature JSON, so the deployed demo stays static</li>
+            </ul>
 
             <h3 class="info-section-title" style="margin-top:22px">Planned Extensions</h3>
             <ul class="info-list">
-              <li class="info-item info-plan">Full Demucs htdemucs — true vocals / bass / drums / other stems via GPU server</li>
+              <li class="info-item info-plan">Live upload mode — run Demucs automatically for a newly provided MP3</li>
               <li class="info-item info-plan">Beat-synchronised camera choreography — orbital path + FOV punch</li>
               <li class="info-item info-plan">Mid-track chroma key shifts — scene colour follows harmonic progression</li>
               <li class="info-item info-plan">Vocal layer extraction + phoneme-level ribbon deformation</li>
-              <li class="info-item info-plan">Live audio input mode — microphone / line-in with real-time HPSS</li>
+              <li class="info-item info-plan">Live audio input mode — microphone / line-in with low-latency analysis</li>
             </ul>
           </div>
         </div>
@@ -492,6 +515,12 @@ function createCinematicOverlay() {
     profileBanner: root.querySelector("[data-profile-banner]"),
     profileBannerName: root.querySelector("[data-profile-banner-name]"),
     profileBannerDesc: root.querySelector("[data-profile-banner-desc]"),
+    motionProfile: root.querySelector("[data-motion-profile]"),
+    motionLabel: root.querySelector("[data-motion-label]"),
+    motionDesc: root.querySelector("[data-motion-desc]"),
+    motionBars: Object.fromEntries(
+      [...root.querySelectorAll("[data-motion-bar]")].map(el => [el.dataset.motionBar, el])
+    ),
     chromaRing: root.querySelector("[data-chroma-ring]"),
     vuBars: Object.fromEntries(
       [...root.querySelectorAll("[data-vu]")].map(el => [el.dataset.vu, el])
@@ -519,11 +548,12 @@ async function loadTrackManifest() {
     populateTrackSelector();
     updateTrackStatus("loading...");
     try {
-      await audioManager.setTrack({
+      const featureTimeline = await audioManager.setTrack({
         ...selectedTrack,
         audioUrl: resolveAssetUrl(selectedTrack.audioUrl),
         featuresFile: resolveAssetUrl(selectedTrack.featuresFile),
       });
+      applyTrackMotionProfile(featureTimeline, selectedTrack);
       updateTrackStatus(`ready · ${formatTime(audioManager.duration)} · click to play`);
     } catch (err) {
       console.warn("[Strata] Features not yet extracted for:", selectedTrack.id, err.message);
@@ -558,11 +588,12 @@ async function selectTrackById(trackId) {
   showProfileBanner(activeVisualProfile);
   resetPlaybackVisualState("loading...", "opening sequence");
   try {
-    await audioManager.setTrack({
+    const featureTimeline = await audioManager.setTrack({
       ...track,
       audioUrl: resolveAssetUrl(track.audioUrl),
       featuresFile: resolveAssetUrl(track.featuresFile),
     });
+    applyTrackMotionProfile(featureTimeline, track);
     updateTrackStatus(`ready · ${formatTime(audioManager.duration)} · click to play`);
   } catch (err) {
     console.warn("[Strata] Features not yet extracted for:", track.id, err.message);
@@ -604,8 +635,49 @@ function applyVisualProfile(profile) {
   }
 }
 
+function applyTrackMotionProfile(featureTimeline, track) {
+  activeMotionProfile = deriveTrackMotionProfile(featureTimeline, track);
+  sceneManager.applyMotionProfile(activeMotionProfile);
+  bassVisualizer.applyMotionProfile(activeMotionProfile);
+  drumVisualizer.applyMotionProfile(activeMotionProfile);
+  melodyVisualizer.applyMotionProfile(activeMotionProfile);
+  harmonicVisualizer.applyMotionProfile(activeMotionProfile);
+  updateMotionIndicator(activeMotionProfile);
+  console.info("[Strata] Motion profile", activeMotionProfile.debug ?? activeMotionProfile);
+}
+
+const MOTION_DESCRIPTIONS = {
+  "beat-locked": "Short, sharp bursts with tempo-locked camera and light pulses.",
+  "bass-dominant": "Large low-frequency shockwaves dominate the stage geometry.",
+  "harmonic-flow": "Longer trails, smoother ribbon motion and persistent harmonic mist.",
+  organic: "Looser timing, softer camera drift and less grid-locked movement.",
+  balanced: "Hybrid behaviour balanced across rhythm, bass and harmony.",
+};
+
+function updateMotionIndicator(profile) {
+  const label = motionLabel(profile);
+  document.body.dataset.motion = label;
+  overlay.motionLabel.textContent = label.replace("-", " ");
+  overlay.motionDesc.textContent = MOTION_DESCRIPTIONS[label] ?? MOTION_DESCRIPTIONS.balanced;
+
+  const rhythmScore = Math.max(profile.staccato ?? 0, profile.onsetDensity ?? 0);
+  overlay.motionBars.rhythm?.style.setProperty(
+    "--motion-score",
+    Math.max(0.06, Math.min(1, rhythmScore)).toFixed(3)
+  );
+}
+
+function motionLabel(profile) {
+  if (!profile) return "balanced";
+  if (profile.bassDominance > 0.5) return "bass-dominant";
+  if (profile.staccato > 0.58 && profile.tempoStability > 0.48) return "beat-locked";
+  if (profile.harmonicRatio > 0.66) return "harmonic-flow";
+  if (profile.organicJitter > 0.68) return "organic";
+  return "balanced";
+}
+
 function getDemoPhase(t = 0, duration = 0) {
-  if (duration && t > duration - 8) return "closing";
+  if (duration && t > duration - 3) return "closing";
   if (t < 4) return "opening";
   if (t < 8) return "separation";
   if (t < 16) return "bass";

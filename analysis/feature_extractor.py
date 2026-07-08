@@ -3,12 +3,19 @@ analysis/feature_extractor.py — librosa feature pipeline (lazy import).
 """
 from __future__ import annotations
 import json, logging, time
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable
 import numpy as np
 
 log = logging.getLogger(__name__)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CACHE_ROOT = PROJECT_ROOT / ".cache"
+os.environ.setdefault("NUMBA_CACHE_DIR", str(CACHE_ROOT / "numba"))
+os.environ.setdefault("LIBROSA_CACHE_DIR", str(CACHE_ROOT / "librosa"))
+CACHE_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass

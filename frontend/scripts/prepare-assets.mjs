@@ -1,4 +1,4 @@
-import { copyFile, mkdir, access, cp, readdir } from "node:fs/promises";
+import { copyFile, mkdir, access, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,16 +37,21 @@ for (const src of [tracksSource, tracksAlt]) {
   }
 }
 
-// Copy features/ directory (per-track JSON produced by the analysis pipeline)
+// Copy top-level per-track feature JSON files. Internal caches such as
+// features/_stem_cache are intentionally not published to GitHub Pages.
 const featuresDir = resolve(projectDir, "features");
 const featuresDirDest = resolve(frontendDir, "public", "features");
 
 try {
   await access(featuresDir);
-  // Use cp (Node 16.7+) for recursive directory copy
-  await cp(featuresDir, featuresDirDest, { recursive: true });
-  const entries = await readdir(featuresDirDest);
-  console.log(`Copied features/ → public/features/ (${entries.length} entries)`);
+  await rm(featuresDirDest, { recursive: true, force: true });
+  await mkdir(featuresDirDest, { recursive: true });
+  const entries = await readdir(featuresDir);
+  const jsonFiles = entries.filter((entry) => entry.endsWith(".json"));
+  for (const entry of jsonFiles) {
+    await copyFile(resolve(featuresDir, entry), resolve(featuresDirDest, entry));
+  }
+  console.log(`Copied features/*.json → public/features/ (${jsonFiles.length} files)`);
 } catch {
   console.log("features/ directory not found at project root, skipping");
 }

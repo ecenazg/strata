@@ -1,6 +1,13 @@
 # Strata — AI-Driven Source Separation & 3D Visualisation
 
-Source-separation 3D music visualiser backend and WebGL frontend for the 6178 Seminar in Visual Computing.
+Source-separation 3D music visualiser backend and WebGL frontend for the 6178
+Seminar in Visual Computing.
+
+The current final-demo prototype uses a prepared multi-track library: each
+track is separated with Demucs, analyzed into per-stem feature JSON, and loaded
+by a static Three.js frontend. The browser demo also derives motion profiles
+from the precomputed features so rhythm-heavy, bass-heavy, and harmonic tracks
+move differently even when the audio is muted.
 
 ## Directory Layout
 
@@ -38,31 +45,40 @@ strata/
 
 ## Quick Start
 
+### Run The Static Frontend Demo
+
 \`\`\`bash
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1
+\`\`\`
 
-# 1. Install Python deps
+Open:
 
-pip install -r requirements.txt
+\`\`\`text
+http://127.0.0.1:5173/strata/
+\`\`\`
 
-# 2. Install Demucs (separate, needs torch)
+The browser reads `frontend/public/tracks.json`, then loads the selected MP3
+and matching `frontend/public/features/<track-id>.json`.
 
-pip install demucs
+### Prepare Tracks Offline
 
-# 3. Run full pipeline (separate + analyse + serve)
+\`\`\`bash
+python3 prepare_tracks.py party-tau-mich-auf bass-track piano-the-mountain
+\`\`\`
 
-python pipeline.py --audio path/to/hp_excerpt.wav
+This runs the Demucs/librosa preparation pipeline for selected track IDs and
+updates the corresponding feature JSON files. The deployed GitHub Pages demo
+does not run Demucs live in the browser.
 
-# 4. Skip separation if stems already exist
+### Legacy WebSocket Pipeline
 
-python pipeline.py --audio path/to/hp_excerpt.wav --skip-separation
+The repository still contains the original WebSocket pipeline for development
+experiments:
 
-# 5. Only compute evaluation metrics
-
-python pipeline.py --audio path/to/hp_excerpt.wav --eval-only
-
-# 6. Change WebSocket port (default 8765)
-
-python pipeline.py --audio path/to/hp_excerpt.wav --port 9000
+\`\`\`bash
+python3 pipeline.py --track-manifest frontend/public/tracks.json
 \`\`\`
 
 ## WebSocket Protocol
@@ -100,16 +116,32 @@ Each stem sub-object in a `frame` message:
 { "cmd": "unsolo" }
 \`\`\`
 
-## Stem → Visual Mapping (Pastel / Ethereal Aesthetic)
+## Stem → Visual Mapping
 
-The visualization maps mathematical audio features to specific 3D geometries in a volumetric pastel environment (peach/cream fog) to emphasize the magical, ethereal nature of orchestral music.
+The visualization maps mathematical audio features to specific 3D geometries in
+a cinematic volumetric scene.
 
 | Stem             | Features used                  | Visual effect                                                                            |
 | ---------------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
-| Melody           | RMS, chroma, onset             | **Mint-green double-helix ribbon** — height ∝ pitch, undulating in 3D                    |
-| Bass             | sub-bass RMS, beat_phase       | **Pastel coral-pink 3D Torus** (Ground shockwave) — radius & opacity ∝ energy            |
-| Drums            | onset, RMS envelope            | **Soft lemon-yellow particle burst** — scale & rotation ∝ hit intensity                  |
-| Harmonic (other) | spectral_centroid, RMS, chroma | **Lavender/soft-blue quantum gyroscope** (nested rings) — density & opacity ∝ brightness |
+| Melody           | RMS, pitch, chroma             | glowing 3D ribbon — height and trail follow pitched material |
+| Bass             | RMS, onset, motion profile     | floor shockwaves and expanding low-frequency rings |
+| Drums            | onset, RMS, motion profile     | particle bursts whose frequency and lifetime follow transient density |
+| Harmonic (other) | spectral_centroid, RMS, chroma, motion profile | atmospheric cloud/ring field with smooth harmonic-flow behavior |
+
+## Feature-Derived Motion Profiles
+
+Color profiles provide the aesthetic mood, but genre readability is supported
+by motion behavior:
+
+- **Beat-locked** tracks create short, sharp particle bursts and tighter
+  camera/lighting response.
+- **Bass-dominant** tracks emphasize large low-frequency shockwaves.
+- **Harmonic-flow** tracks create smoother ribbon motion and longer cloud
+  persistence.
+
+The motion profile is computed client-side from precomputed feature JSON plus
+the prepared track's visual profile. This keeps the deployed demo static while
+making the visual behavior data-driven.
 
 ## Frontend Features & Interactivity (Three.js)
 

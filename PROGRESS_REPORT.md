@@ -1,13 +1,15 @@
 # Strata — Progress Report
-**Date:** June 7, 2026  
+**Date:** July 8, 2026  
 **Live Demo:** https://ecenazg.github.io/strata/  
-**Status:** ✅ Deployed
+**Status:** Deployed prototype, final-demo alignment in progress
 
 ---
 
 ## What Is Strata?
 
-Strata is an AI-powered real-time 3D music visualizer. It separates a song into its four hidden instrument layers — **bass, drums, melody, and harmony** — and translates each layer into a distinct cinematic 3D animation, all synchronized to the audio as it plays.
+Strata is an AI-powered real-time 3D music visualizer. It separates prepared songs into hidden musical layers — **bass, drums, melody, and harmony** — and translates each layer into a distinct cinematic 3D animation synchronized to the audio.
+
+The current prototype supports a prepared multi-track library and uses feature-derived motion profiles so that different tracks do not only change color: rhythm-heavy music becomes sharper and more beat-locked, bass-heavy music produces stronger shockwaves, and harmonic/cinematic music becomes smoother and more flowing.
 
 The name "Strata" refers to geological layers: music has hidden layers too, and this project makes them visible.
 
@@ -36,8 +38,8 @@ Each stem is analyzed frame-by-frame at 44,100 Hz with a 512-sample hop (~11.6 m
 | `pitch_hz` | Dominant pitch in Hz |
 | `beat_phase` | Position within the current beat cycle (0–1) |
 
-**Step 3 — Down-sampling to 60 FPS**  
-Raw librosa output is ~86 fps. We down-sample to exactly 60 fps to match the renderer, producing a compact `features.json` (~timeline of all four stems).
+**Step 3 — Prepared Track Library**  
+Each prepared song is exported as its own feature timeline under `features/*.json` and copied to `frontend/public/features/*.json`. The browser reads `frontend/public/tracks.json` to switch between prepared songs without requiring a backend server during the live demo.
 
 **Key data structures:**
 - `StemFeatures` — per-frame features for one instrument
@@ -51,10 +53,10 @@ Raw librosa output is ~86 fps. We down-sample to exactly 60 fps to match the ren
 **Stack:** Three.js, Vite, lil-gui  
 **Files:** `frontend/src/`
 
-The frontend loads `features.json` and the MP3, then drives a full 3D scene in sync with the audio.
+The frontend loads `tracks.json`, the selected MP3, and the selected feature JSON, then drives a full 3D scene in sync with the audio.
 
 #### AudioSyncManager (`AudioSyncManager.js`)
-- Loads the feature timeline from JSON on startup
+- Loads the selected track's feature timeline from JSON
 - Plays the HTML5 `<audio>` element and runs a `requestAnimationFrame` loop
 - On each frame, finds the correct `FrameFeatures` by binary-searching the timestamp
 - Dispatches feature data to all four visualizers
@@ -81,6 +83,22 @@ Owns the Three.js scene, camera, lighting, and post-processing:
 
 Each visualizer has a `setMix(value)` method that scales its visual intensity. The phase system uses `applyPhaseMix()` to spotlight one layer at a time — for example, during the "bass" phase, `mix.bass = 1` while all others are reduced.
 
+#### Feature-Derived Motion Profiles
+
+To address the instructor feedback that viewers should infer the music
+character even without hearing it, the current frontend derives a lightweight
+motion profile from each selected track's feature JSON:
+
+| Motion cue | Feature evidence | Visual effect |
+|---|---|---|
+| Beat-locked / rhythm-heavy | onset density + tempo regularity | shorter, sharper particle bursts and tighter camera/lighting response |
+| Bass-dominant | bass energy share and bass motion profile | larger, stronger low-frequency shockwaves |
+| Harmonic-flow | harmonic/melodic balance | smoother ribbon motion and longer harmonic cloud persistence |
+
+This is implemented client-side from precomputed features, preserving the static
+GitHub Pages deployment while still keeping the final motion behavior
+data-driven.
+
 #### Cinematic Overlay (HTML/CSS)
 - **Title lockup:** "STRATA" headline with eyebrow text and subtitle
 - **Phase label:** Live text showing the current narrative phase
@@ -99,7 +117,9 @@ Each visualizer has a `setMix(value)` method that scales its visual intensity. T
 The frontend is built with Vite and deployed to **GitHub Pages** at:  
 **https://ecenazg.github.io/strata/**
 
-The `features.json` and the test MP3 are bundled into the static build (`dist/`), so the app runs entirely in the browser with no server needed.
+The prepared MP3 files, `tracks.json`, and `features/*.json` files are bundled
+into the static build (`dist/`), so the app runs entirely in the browser with no
+server needed.
 
 ---
 
@@ -109,7 +129,7 @@ The `features.json` and the test MP3 are bundled into the static build (`dist/`)
 ┌─────────────────────────────────────────────────────┐
 │                  PYTHON BACKEND                      │
 │                                                     │
-│  frontend/public/audio/test_music.mp3               │
+│  frontend/public/audio/*.mp3                        │
 │       │                                             │
 │       ▼                                             │
 │  Demucs (htdemucs) ──────────────────────────────►  stems/
@@ -122,10 +142,10 @@ The `features.json` and the test MP3 are bundled into the static build (`dist/`)
 │  (RMS, onset, centroid, chroma, pitch, beat)        │
 │       │                                             │
 │       ▼                                             │
-│  Down-sample → 60 FPS                               │
+│  Export per-track feature timeline                  │
 │       │                                             │
 │       ▼                                             │
-│  features.json  ◄───────────────────────────────── │
+│  features/<track-id>.json ◄────────────────────── │
 └─────────────────────────────────────────────────────┘
                          │
                          │ (bundled into dist/)
@@ -134,9 +154,11 @@ The `features.json` and the test MP3 are bundled into the static build (`dist/`)
 │              JAVASCRIPT FRONTEND (Three.js)          │
 │                                                     │
 │  AudioSyncManager                                   │
-│  ├── Loads features.json                            │
+│  ├── Loads tracks.json + selected feature JSON      │
 │  ├── Plays MP3                                      │
-│  └── Streams FrameFeatures @ 60fps                  │
+│  └── Streams timestamp-aligned FrameFeatures        │
+│                         │                           │
+│           MotionProfile derives behavior style      │
 │                         │                           │
 │           ┌─────────────┼──────────────┐            │
 │           ▼             ▼              ▼            │
@@ -166,6 +188,12 @@ Meta's `htdemucs` is state-of-the-art for music source separation. It uses a hyb
 **Why pre-computed features instead of real-time analysis?**  
 Running librosa in the browser is not feasible. Pre-computing to JSON keeps the frontend purely presentational — no heavy audio math at runtime, just array lookups.
 
+**Why client-side motion profiles?**  
+The final deployed demo must remain static and reliable on GitHub Pages. Motion
+profiles are therefore derived in the browser from already-precomputed stem
+features. This keeps deployment simple while making the visualization respond
+to track character beyond color palette changes.
+
 **Why Three.js?**  
 WebGL gives us GPU-accelerated rendering for particles, geometry shaders, and post-processing bloom — essential for smooth 60fps visuals.
 
@@ -177,6 +205,7 @@ Fast HMR during development, minimal config, and clean static output for GitHub 
 ## What's Next (Future Work)
 
 - **Upload your own song** — drag & drop any MP3, run the backend pipeline, visualize it
+- **Automatic genre/profile inference** — infer the visual profile for new songs instead of assigning a prepared track category
 - **WebSocket mode** — stream features in real time from a running Python server instead of loading a static JSON
 - **More visualizers** — waveform oscilloscope, frequency spectrum bars, chord wheel
 - **Export to MP4** — ffmpeg-based server-side render at full 1920×1080 resolution

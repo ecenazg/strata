@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prepare-assets": "node scripts/prepare-assets.mjs",
+    "evaluate-final": "node scripts/export-final-alignment.mjs",
     "predev": "npm run prepare-assets",
     "dev": "vite",
     "prebuild": "npm run prepare-assets",

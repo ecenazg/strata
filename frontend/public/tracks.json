@@ -7,7 +7,7 @@
       "artist": "Demo selection",
       "audioUrl": "/audio/bass_track.mp3",
       "sourceAudioUrl": "/audio/bass_track.mp3",
-      "featuresFile": "features/bass_track.json",
+      "featuresFile": "features/bass-track.json",
       "visualProfile": "bass-heavy",
       "prepared": true
     },
@@ -17,7 +17,7 @@
       "artist": "Zartmann",
       "audioUrl": "/audio/tau_mich_auf.mp3",
       "sourceAudioUrl": "/audio/tau_mich_auf.mp3",
-      "featuresFile": "features/tau_mich_auf.json",
+      "featuresFile": "features/party-tau-mich-auf.json",
       "visualProfile": "party",
       "prepared": true
     },
@@ -27,7 +27,7 @@
       "artist": "RUFUS DU SOL",
       "audioUrl": "/audio/innerbloom.mp3",
       "sourceAudioUrl": "/audio/innerbloom.mp3",
-      "featuresFile": "features/innerbloom.json",
+      "featuresFile": "features/melodic-innerbloom.json",
       "visualProfile": "melodic",
       "prepared": true
     },
@@ -57,7 +57,7 @@
       "artist": "M83",
       "audioUrl": "/audio/outro.mp3",
       "sourceAudioUrl": "/audio/outro.mp3",
-      "featuresFile": "features/outro.json",
+      "featuresFile": "features/cinematic-outro.json",
       "visualProfile": "cinematic",
       "prepared": true
     },

@@ -74,14 +74,34 @@ Defense sentence:
 > The visual system is not driven by arbitrary animation. Each visual layer is
 > controlled by a specific descriptor extracted from an AI-separated stem.
 
+### Final Alignment / Instructor Feedback
+
+Use this when explaining what changed after the progress feedback:
+
+| File | Use |
+| --- | --- |
+| `../final_alignment/final_alignment_report.md` | current status against project report and instructor feedback |
+| `../final_alignment/final_alignment_summary.json` | machine-readable multi-track and motion-profile summary |
+
+Key facts:
+
+- The current prototype has **7 prepared tracks**.
+- All prepared tracks have matching browser audio and feature JSON assets.
+- Motion behavior now changes beyond color palettes: tracks are mapped toward
+  beat-locked, bass-dominant, or harmonic-flow visual behavior.
+- This directly supports the silent-view requirement: viewers should be able to
+  infer whether the music is rhythm-heavy, bass-dominant, or harmonic/cinematic
+  from movement character.
+
 ## Recommended Presentation Flow
 
 1. Start with the live demo for emotional impact.
 2. Pause and show the pipeline: input song -> Demucs stems -> feature timeline -> Three.js scene.
 3. Show technical evaluation: scorecard first, then spectrograms and correlation.
 4. Show visual mapping evaluation: storyboard first, then mapping table and control timeline.
-5. Return to the live demo and jump between sections with the seek bar.
-6. Close with the system claim: AI separation plus real-time 3D audiovisual mapping.
+5. Show final alignment: multi-track support and feature-derived motion profiles.
+6. Return to the live demo and switch between contrasting tracks with the audio muted.
+7. Close with the system claim: AI separation plus real-time 3D audiovisual mapping.
 
 ## Demo Controls
 
