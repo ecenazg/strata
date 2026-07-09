@@ -82,10 +82,9 @@ export class AudioSyncManager {
     return target;
   }
 
-  togglePlayback() {
+  async togglePlayback() {
     if (this.isPlaying) { this.pause(); return false; }
-    this.play().catch(console.error);
-    return true;
+    return this.play();
   }
 
   finishPlayback() {

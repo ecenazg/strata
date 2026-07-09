@@ -285,19 +285,25 @@ overlay.progressTrack.addEventListener("pointerup", (event) => {
   overlay.progressTrack.releasePointerCapture(event.pointerId);
 });
 
-window.addEventListener("click", (e) => {
+window.addEventListener("click", async (e) => {
   if (e.target.closest(".lil-gui, .progress-track, .track-picker, .info-panel, .info-toggle, .info-close")) return;
 
-  const isPlaying = audioManager.togglePlayback();
+  try {
+    const isPlaying = await audioManager.togglePlayback();
 
-  if (isPlaying) {
-    console.log("Tıklandı, müzik başlatılıyor...");
-    document.body.classList.add("is-playing");
-    overlay.state.textContent = "playback started";
-  } else {
-    console.log("Tıklandı, müzik duraklatılıyor...");
+    if (isPlaying) {
+      console.log("Tıklandı, müzik başlatılıyor...");
+      document.body.classList.add("is-playing");
+      overlay.state.textContent = "playback started";
+    } else {
+      console.log("Tıklandı, müzik duraklatılıyor...");
+      document.body.classList.remove("is-playing");
+      overlay.state.textContent = "playback paused";
+    }
+  } catch (error) {
+    console.error(error);
     document.body.classList.remove("is-playing");
-    overlay.state.textContent = "playback paused";
+    overlay.state.textContent = "click again to start audio";
   }
 });
 
